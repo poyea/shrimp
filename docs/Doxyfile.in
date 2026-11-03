@@ -1,0 +1,12 @@
+PROJECT_NAME           = @PROJECT_NAME@
+PROJECT_NUMBER         = @PROJECT_VERSION@
+OUTPUT_DIRECTORY       = @CMAKE_CURRENT_BINARY_DIR@/site
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+RECURSIVE              = YES
+QUIET                  = YES
+EXTRACT_ALL            = YES
+INPUT                  = @PROJECT_SOURCE_DIR@/include @PROJECT_SOURCE_DIR@/src
+FILE_PATTERNS          = *.hpp *.h *.cpp
+FULL_PATH_NAMES        = NO
+STRIP_FROM_PATH        = @PROJECT_SOURCE_DIR@

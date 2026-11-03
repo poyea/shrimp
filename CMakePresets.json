@@ -1,0 +1,107 @@
+{
+    "version": 9,
+    "cmakeMinimumRequired": {
+        "major": 4,
+        "minor": 3,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "debug",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CPP_PACKAGE_BOILERPLATE_BUILD_BENCHMARKS": "OFF",
+                "CPP_PACKAGE_BOILERPLATE_BUILD_DOCS": "OFF"
+            }
+        },
+        {
+            "name": "debug-vcpkg",
+            "inherits": [
+                "debug"
+            ],
+            "binaryDir": "${sourceDir}/build/debug-vcpkg",
+            "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        },
+        {
+            "name": "release",
+            "inherits": [
+                "debug"
+            ],
+            "binaryDir": "${sourceDir}/build/release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "release-vcpkg",
+            "inherits": [
+                "release"
+            ],
+            "binaryDir": "${sourceDir}/build/release-vcpkg",
+            "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        },
+        {
+            "name": "ci",
+            "inherits": [
+                "debug"
+            ],
+            "binaryDir": "${sourceDir}/build/ci",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "CPP_PACKAGE_BOILERPLATE_ENABLE_SANITIZERS": "OFF"
+            }
+        },
+        {
+            "name": "ci-vcpkg",
+            "inherits": [
+                "ci"
+            ],
+            "binaryDir": "${sourceDir}/build/ci-vcpkg",
+            "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "debug",
+            "configurePreset": "debug"
+        },
+        {
+            "name": "debug-vcpkg",
+            "configurePreset": "debug-vcpkg"
+        },
+        {
+            "name": "release",
+            "configurePreset": "release"
+        },
+        {
+            "name": "release-vcpkg",
+            "configurePreset": "release-vcpkg"
+        },
+        {
+            "name": "ci",
+            "configurePreset": "ci"
+        },
+        {
+            "name": "ci-vcpkg",
+            "configurePreset": "ci-vcpkg"
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "debug",
+            "configurePreset": "debug",
+            "output": {
+                "outputOnFailure": true
+            }
+        },
+        {
+            "name": "debug-vcpkg",
+            "configurePreset": "debug-vcpkg",
+            "output": {
+                "outputOnFailure": true
+            }
+        }
+    ]
+}

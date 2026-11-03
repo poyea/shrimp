@@ -1,0 +1,24 @@
+{
+    "name": "cpp-package-boilerplate",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": ".."
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools-extension-pack",
+                "ms-vscode.cmake-tools",
+                "ms-azuretools.vscode-docker",
+                "xaver.clang-format"
+            ],
+            "settings": {
+                "cmake.configureOnOpen": true,
+                "cmake.generator": "Ninja",
+                "cmake.buildDirectory": "${workspaceFolder}/build/${buildType}",
+                "editor.formatOnSave": true
+            }
+        }
+    },
+    "postCreateCommand": "bash .devcontainer/post-create.sh"
+}

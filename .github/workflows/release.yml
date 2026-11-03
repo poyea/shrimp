@@ -1,0 +1,48 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-release-artifacts:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up CMake (latest)
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: 'latest'
+      - name: Install toolchain
+        run: |
+          # ubuntu-toolchain-r/test only carries pre-release GCC 16 snapshots
+          # (16.0.x), so install the 16.1 release from Debian sid, pinned narrowly.
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends debian-archive-keyring
+
+          echo "deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian sid main" \
+            | sudo tee /etc/apt/sources.list.d/debian-sid.list
+
+          printf 'Package: *\nPin: release o=Debian\nPin-Priority: 100\n\nPackage: gcc-16 gcc-16-* g++-16 g++-16-* cpp-16 cpp-16-* gcc-16-base libgcc-16-dev libstdc++-16-dev libstdc++6 libgcc-s1 libgomp1 libitm1 libatomic1 libquadmath0 libcc1-0 libasan8 libubsan1 liblsan0 libtsan2 libhwasan0\nPin: release o=Debian\nPin-Priority: 990\n' \
+            | sudo tee /etc/apt/preferences.d/debian
+
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc-16 g++-16 ninja-build
+          g++-16 --version
+      - name: Configure release build
+        env:
+          CC: gcc-16
+          CXX: g++-16
+        run: cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCPP_PACKAGE_BOILERPLATE_BUILD_TESTS=OFF -DCPP_PACKAGE_BOILERPLATE_BUILD_BENCHMARKS=OFF -DCPP_PACKAGE_BOILERPLATE_BUILD_DOCS=OFF
+      - name: Build release artifacts
+        run: cmake --build build/release --parallel
+      - name: Package artifacts
+        run: tar -czf cpp-package-boilerplate-${GITHUB_REF_NAME}.tar.gz -C build/release .
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: cpp-package-boilerplate-${{ github.ref_name }}.tar.gz

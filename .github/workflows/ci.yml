@@ -1,0 +1,129 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install clang-format
+        run: sudo apt-get update && sudo apt-get install -y clang-format
+      - name: Check formatting
+        run: bash scripts/format.sh --check
+
+  build-and-test:
+    needs: format
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-26.04
+            compiler: gcc-16
+            cc: gcc-16
+            cxx: g++-16
+          - os: ubuntu-24.04
+            compiler: clang-22
+            cc: clang-22
+            cxx: clang++-22
+          - os: macos-15
+            compiler: apple-clang
+            cc: clang
+            cxx: clang++
+          - os: windows-2022
+            compiler: msvc
+            cc: cl
+            cxx: cl
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgJsonGlob: vcpkg.json
+      - name: Set up MSVC developer shell
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: Install Ninja on Windows
+        if: runner.os == 'Windows'
+        run: choco install ninja --no-progress -y
+      - name: Install Ninja on macOS
+        if: runner.os == 'macOS'
+        run: brew install ninja
+      - name: Set up CMake (latest)
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: 'latest'
+      - name: Install toolchain on Ubuntu
+        if: runner.os == 'Linux'
+        run: |
+          if [ "${{ matrix.compiler }}" = "gcc-16" ]; then
+            # ubuntu-toolchain-r/test only carries pre-release GCC 16 snapshots,
+            # which report 16.0.x and fail the 16.1 floor. Debian sid ships the
+            # 16.1.0 release, pinned narrowly so nothing else is pulled forward.
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends debian-archive-keyring
+
+            echo "deb [signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] http://deb.debian.org/debian sid main" \
+              | sudo tee /etc/apt/sources.list.d/debian-sid.list
+
+            printf 'Package: *\nPin: release o=Debian\nPin-Priority: 100\n\nPackage: gcc-16 gcc-16-* g++-16 g++-16-* cpp-16 cpp-16-* gcc-16-base libgcc-16-dev libstdc++-16-dev libstdc++6 libgcc-s1 libgomp1 libitm1 libatomic1 libquadmath0 libcc1-0 libasan8 libubsan1 liblsan0 libtsan2 libhwasan0\nPin: release o=Debian\nPin-Priority: 990\n' \
+              | sudo tee /etc/apt/preferences.d/debian
+
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends gcc-16 g++-16 ninja-build
+            g++-16 --version
+          elif [ "${{ matrix.compiler }}" = "clang-22" ]; then
+            sudo apt-get update && sudo apt-get install -y ninja-build
+            wget -q https://apt.llvm.org/llvm.sh
+            chmod +x llvm.sh
+            sudo ./llvm.sh 22
+          fi
+      - name: Configure (Linux/macOS)
+        if: runner.os != 'Windows'
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: cmake -S . -B build -G Ninja "-DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DCPP_PACKAGE_BOILERPLATE_BUILD_BENCHMARKS=OFF -DCPP_PACKAGE_BOILERPLATE_BUILD_DOCS=OFF
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: cmake -S . -B build -G "Ninja" "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" -DCPP_PACKAGE_BOILERPLATE_BUILD_BENCHMARKS=OFF -DCPP_PACKAGE_BOILERPLATE_BUILD_DOCS=OFF
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  clang-tidy:
+    needs: format
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up CMake (latest)
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: 'latest'
+      - name: Install clang toolchain
+        run: |
+          sudo apt-get update && sudo apt-get install -y ninja-build
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 22
+      - name: Set up vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgJsonGlob: vcpkg.json
+      - name: Configure clang-tidy build
+        env:
+          CC: clang-22
+          CXX: clang++-22
+        run: cmake -S . -B build/tidy -G Ninja -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake -DCPP_PACKAGE_BOILERPLATE_BUILD_BENCHMARKS=OFF -DCPP_PACKAGE_BOILERPLATE_BUILD_DOCS=OFF -DCPP_PACKAGE_BOILERPLATE_ENABLE_CLANG_TIDY=ON
+      - name: Build with clang-tidy
+        run: cmake --build build/tidy --parallel
