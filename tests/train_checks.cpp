@@ -9,8 +9,8 @@
 namespace {
 
 using poyea::shrimp::Corpus;
-using poyea::shrimp::ModelConfig;
 using poyea::shrimp::generate;
+using poyea::shrimp::ModelConfig;
 using poyea::shrimp::random_transformer;
 using poyea::shrimp::tokens;
 using poyea::shrimp::train;

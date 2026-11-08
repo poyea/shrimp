@@ -156,7 +156,7 @@ constexpr auto residual_retains_dout() -> bool {
     attn.wo = Matrix<double, cfg.dim, cfg.dim>{};
     auto const back =
         backward_of<cfg>(attn, tiny_model.blocks[0].attn_norm, tiny_stream, tiny_seed);
-    for (std::size_t i = 0; i < tiny_seed.size; ++i) {
+    for (std::size_t i = 0; i < decltype(tiny_seed)::size; ++i) {
         if (!near(back.dstream.storage[i], tiny_seed.storage[i], 1e-12)) {
             return false;
         }

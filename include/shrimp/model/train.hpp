@@ -18,10 +18,8 @@ template <typename T, ModelConfig C, std::size_t Steps> struct TrainResult {
     std::array<T, Steps> loss{};
 };
 
-template <std::size_t Steps, typename T, ModelConfig C, std::size_t Capacity,
-          std::size_t Count>
-[[nodiscard]] constexpr auto train(Transformer<T, C> model,
-                                   Corpus<Capacity, Count> const& corpus,
+template <std::size_t Steps, typename T, ModelConfig C, std::size_t Capacity, std::size_t Count>
+[[nodiscard]] constexpr auto train(Transformer<T, C> model, Corpus<Capacity, Count> const& corpus,
                                    T rate) -> TrainResult<T, C, Steps> {
     static_assert(Count > 0, "training needs at least one sample");
     TrainResult<T, C, Steps> result{};
