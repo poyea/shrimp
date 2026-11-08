@@ -195,7 +195,28 @@ template <std::floating_point T> [[nodiscard]] constexpr auto sin(T x) noexcept 
 }
 
 template <std::floating_point T> [[nodiscard]] constexpr auto cos(T x) noexcept -> T {
-    return sin(x + std::numbers::pi_v<T> / T{2});
+    if (is_nan(x) || is_inf(x)) {
+        return std::numeric_limits<T>::quiet_NaN();
+    }
+    constexpr T pi = std::numbers::pi_v<T>;
+    constexpr T two_pi = T{2} * pi;
+
+    T r = x;
+    while (r > pi) {
+        r -= two_pi;
+    }
+    while (r < -pi) {
+        r += two_pi;
+    }
+
+    T term = T{1};
+    T sum = T{1};
+    T const r2 = r * r;
+    for (int i = 1; i <= 12; ++i) {
+        term *= -r2 / static_cast<T>(((2 * i) - 1) * (2 * i));
+        sum += term;
+    }
+    return sum;
 }
 
 } // namespace poyea::shrimp::cmath

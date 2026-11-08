@@ -2,6 +2,7 @@
 
 #include "shrimp/core/math.hpp"
 #include "shrimp/core/tensor.hpp"
+#include "shrimp/ops/nn.hpp"
 
 #include <cstddef>
 
