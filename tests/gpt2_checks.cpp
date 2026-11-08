@@ -18,14 +18,14 @@ using poyea::shrimp::Corpus;
 using poyea::shrimp::Gradients;
 using poyea::shrimp::ModelConfig;
 using poyea::shrimp::Norm;
-using poyea::shrimp::Pos;
-using poyea::shrimp::TokenSequence;
-using poyea::shrimp::Transformer;
 using poyea::shrimp::output_weight;
+using poyea::shrimp::Pos;
 using poyea::shrimp::random_transformer;
 using poyea::shrimp::row;
 using poyea::shrimp::tokens;
+using poyea::shrimp::TokenSequence;
 using poyea::shrimp::train;
+using poyea::shrimp::Transformer;
 using poyea::shrimp::ops::linear;
 
 template <typename T> [[nodiscard]] constexpr auto near(T a, T b, T tolerance) noexcept -> bool {
@@ -171,8 +171,7 @@ constexpr auto objective(Model const& m, Input const& in) -> double {
     return poyea::shrimp::sequence_loss(poyea::shrimp::forward_train(m, in), in);
 }
 
-template <typename Select>
-constexpr auto matches_fd(Select select, std::size_t first) -> bool {
+template <typename Select> constexpr auto matches_fd(Select select, std::size_t first) -> bool {
     constexpr double h = 1e-5;
     constexpr double tolerance = 1e-6;
     auto const in = input();

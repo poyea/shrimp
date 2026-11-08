@@ -12,9 +12,9 @@ using poyea::shrimp::ForwardTape;
 using poyea::shrimp::Gradients;
 using poyea::shrimp::Matrix;
 using poyea::shrimp::ModelConfig;
+using poyea::shrimp::output_weight;
 using poyea::shrimp::TokenSequence;
 using poyea::shrimp::Transformer;
-using poyea::shrimp::output_weight;
 
 template <typename T> [[nodiscard]] constexpr auto near(T a, T b, T tolerance) noexcept -> bool {
     return poyea::shrimp::cmath::abs(a - b) <= tolerance;
