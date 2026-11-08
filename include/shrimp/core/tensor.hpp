@@ -107,4 +107,12 @@ constexpr void set_row(Matrix<T, Rows, Cols>& m, std::size_t index,
     }
 }
 
+template <typename T, std::size_t Rows, std::size_t Cols>
+constexpr void add_to_row(Matrix<T, Rows, Cols>& m, std::size_t index,
+                          Vector<T, Cols> const& value) noexcept {
+    for (std::size_t j = 0; j < Cols; ++j) {
+        m.storage[(index * Cols) + j] += value.storage[j];
+    }
+}
+
 } // namespace poyea::shrimp
