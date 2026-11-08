@@ -12,12 +12,14 @@ Checks: >-
   -cppcoreguidelines-owning-memory,
   -cppcoreguidelines-pro-bounds-constant-array-index,
   -bugprone-easily-swappable-parameters,
+  -modernize-use-std-numbers,
   -readability-magic-numbers,
   -readability-identifier-length
 
 # bounds-constant-array-index: gsl::at is not constexpr-usable; bounds live in
 # the tensor extents. easily-swappable-parameters: signature orders follow the
-# reference implementations.
+# reference implementations. use-std-numbers: would rewrite the calls and
+# literals that test our own exp and sqrt.
 
 CheckOptions:
   - key: readability-function-cognitive-complexity.Threshold

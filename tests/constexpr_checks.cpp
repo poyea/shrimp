@@ -91,7 +91,7 @@ static_assert(subscript_roundtrip());
 
 constexpr auto filled_is_uniform() -> bool {
     auto const t = Tensor<double, 2, 5>::filled(1.5);
-    for (std::size_t i = 0; i < t.size; ++i) {
+    for (std::size_t i = 0; i < Tensor<double, 2, 5>::size; ++i) {
         if (t.storage[i] != 1.5) {
             return false;
         }
