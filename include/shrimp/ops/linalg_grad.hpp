@@ -6,8 +6,7 @@
 
 namespace poyea::shrimp::ops {
 
-template <typename T, std::size_t N>
-struct DotGrad {
+template <typename T, std::size_t N> struct DotGrad {
     Vector<T, N> da{};
     Vector<T, N> db{};
 };
@@ -23,17 +22,15 @@ template <typename T, std::size_t N>
     return out;
 }
 
-template <typename T, std::size_t Out, std::size_t In>
-struct LinearGrad {
+template <typename T, std::size_t Out, std::size_t In> struct LinearGrad {
     Vector<T, In> dx{};
     Matrix<T, Out, In> dw{};
 };
 
 template <typename T, std::size_t Out, std::size_t In>
-[[nodiscard]] constexpr auto linear_backward(Matrix<T, Out, In> const& weight,
-                                             Vector<T, In> const& x,
-                                             Vector<T, Out> const& dy) noexcept
-    -> LinearGrad<T, Out, In> {
+[[nodiscard]] constexpr auto
+linear_backward(Matrix<T, Out, In> const& weight, Vector<T, In> const& x,
+                Vector<T, Out> const& dy) noexcept -> LinearGrad<T, Out, In> {
     LinearGrad<T, Out, In> out{};
     for (std::size_t o = 0; o < Out; ++o) {
         for (std::size_t i = 0; i < In; ++i) {
@@ -44,16 +41,15 @@ template <typename T, std::size_t Out, std::size_t In>
     return out;
 }
 
-template <typename T, std::size_t M, std::size_t K, std::size_t N>
-struct MatmulGrad {
+template <typename T, std::size_t M, std::size_t K, std::size_t N> struct MatmulGrad {
     Matrix<T, M, K> da{};
     Matrix<T, K, N> db{};
 };
 
 template <typename T, std::size_t M, std::size_t K, std::size_t N>
-[[nodiscard]] constexpr auto matmul_backward(Matrix<T, M, K> const& a, Matrix<T, K, N> const& b,
-                                             Matrix<T, M, N> const& dc) noexcept
-    -> MatmulGrad<T, M, K, N> {
+[[nodiscard]] constexpr auto
+matmul_backward(Matrix<T, M, K> const& a, Matrix<T, K, N> const& b,
+                Matrix<T, M, N> const& dc) noexcept -> MatmulGrad<T, M, K, N> {
     MatmulGrad<T, M, K, N> out{};
     for (std::size_t i = 0; i < M; ++i) {
         for (std::size_t k = 0; k < K; ++k) {
@@ -66,23 +62,21 @@ template <typename T, std::size_t M, std::size_t K, std::size_t N>
     return out;
 }
 
-template <typename T, std::size_t... Dims>
-struct BinaryGrad {
+template <typename T, std::size_t... Dims> struct BinaryGrad {
     Tensor<T, Dims...> da{};
     Tensor<T, Dims...> db{};
 };
 
 template <typename T, std::size_t... Dims>
-[[nodiscard]] constexpr auto add_backward(Tensor<T, Dims...> const& dy) noexcept
-    -> BinaryGrad<T, Dims...> {
+[[nodiscard]] constexpr auto
+add_backward(Tensor<T, Dims...> const& dy) noexcept -> BinaryGrad<T, Dims...> {
     return BinaryGrad<T, Dims...>{dy, dy};
 }
 
 template <typename T, std::size_t... Dims>
-[[nodiscard]] constexpr auto hadamard_backward(Tensor<T, Dims...> const& a,
-                                               Tensor<T, Dims...> const& b,
-                                               Tensor<T, Dims...> const& dy) noexcept
-    -> BinaryGrad<T, Dims...> {
+[[nodiscard]] constexpr auto
+hadamard_backward(Tensor<T, Dims...> const& a, Tensor<T, Dims...> const& b,
+                  Tensor<T, Dims...> const& dy) noexcept -> BinaryGrad<T, Dims...> {
     BinaryGrad<T, Dims...> out{};
     for (std::size_t i = 0; i < Tensor<T, Dims...>::size; ++i) {
         out.da.storage[i] = dy.storage[i] * b.storage[i];
@@ -91,16 +85,15 @@ template <typename T, std::size_t... Dims>
     return out;
 }
 
-template <typename T, std::size_t... Dims>
-struct ScaleGrad {
+template <typename T, std::size_t... Dims> struct ScaleGrad {
     Tensor<T, Dims...> da{};
     T dfactor{};
 };
 
 template <typename T, std::size_t... Dims>
-[[nodiscard]] constexpr auto scale_backward(Tensor<T, Dims...> const& a, T factor,
-                                            Tensor<T, Dims...> const& dy) noexcept
-    -> ScaleGrad<T, Dims...> {
+[[nodiscard]] constexpr auto
+scale_backward(Tensor<T, Dims...> const& a, T factor,
+               Tensor<T, Dims...> const& dy) noexcept -> ScaleGrad<T, Dims...> {
     ScaleGrad<T, Dims...> out{};
     for (std::size_t i = 0; i < Tensor<T, Dims...>::size; ++i) {
         out.da.storage[i] = dy.storage[i] * factor;

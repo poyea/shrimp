@@ -10,8 +10,7 @@ using poyea::shrimp::ops::cross_entropy;
 using poyea::shrimp::ops::cross_entropy_grad;
 using poyea::shrimp::ops::log_softmax;
 
-template <typename T>
-[[nodiscard]] constexpr auto near(T a, T b, T tolerance) noexcept -> bool {
+template <typename T> [[nodiscard]] constexpr auto near(T a, T b, T tolerance) noexcept -> bool {
     return poyea::shrimp::cmath::abs(a - b) <= tolerance;
 }
 
@@ -62,8 +61,7 @@ constexpr auto grad_matches_finite_difference(std::size_t target) -> bool {
         auto minus = logits;
         plus.storage[i] += h;
         minus.storage[i] -= h;
-        double const fd =
-            (cross_entropy(plus, target) - cross_entropy(minus, target)) / (2.0 * h);
+        double const fd = (cross_entropy(plus, target) - cross_entropy(minus, target)) / (2.0 * h);
         if (!near(analytic.storage[i], fd, 1e-7)) {
             return false;
         }

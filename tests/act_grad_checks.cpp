@@ -26,8 +26,7 @@ using poyea::shrimp::ops::softmax_backward;
 using poyea::shrimp::ops::softmax_prefix;
 using poyea::shrimp::ops::softmax_prefix_backward;
 
-template <typename T>
-[[nodiscard]] constexpr auto near(T a, T b, T tolerance) noexcept -> bool {
+template <typename T> [[nodiscard]] constexpr auto near(T a, T b, T tolerance) noexcept -> bool {
     return poyea::shrimp::cmath::abs(a - b) <= tolerance;
 }
 
@@ -39,8 +38,12 @@ template <typename F>
     return (f(x + h) - f(x - h)) / (2.0 * h);
 }
 
-constexpr auto silu_value(double x) noexcept -> double { return silu_scalar(x); }
-constexpr auto gelu_value(double x) noexcept -> double { return gelu_scalar(x); }
+constexpr auto silu_value(double x) noexcept -> double {
+    return silu_scalar(x);
+}
+constexpr auto gelu_value(double x) noexcept -> double {
+    return gelu_scalar(x);
+}
 
 constexpr auto silu_grad_matches(double x) noexcept -> bool {
     return near(silu_grad_scalar(x), central_difference(silu_value, x), tolerance);
@@ -122,8 +125,7 @@ constexpr auto rope_vec(Vector<double, 4> const& v) noexcept -> Vector<double, 4
 
 static_assert(gradient_matches(silu_vec, sample, seed, silu_backward(sample, seed)));
 static_assert(gradient_matches(gelu_vec, sample, seed, gelu_backward(sample, seed)));
-static_assert(
-    gradient_matches(softmax_vec, sample, seed, softmax_backward(softmax(sample), seed)));
+static_assert(gradient_matches(softmax_vec, sample, seed, softmax_backward(softmax(sample), seed)));
 static_assert(gradient_matches(softmax_prefix_vec, sample, seed,
                                softmax_prefix_backward(softmax_prefix(sample, 3), seed, 3)));
 static_assert(gradient_matches(log_softmax_vec, sample, seed,

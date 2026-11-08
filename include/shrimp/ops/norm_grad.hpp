@@ -19,10 +19,9 @@ template <typename T, std::size_t N> struct LayerNormGrad {
 };
 
 template <typename T, std::size_t N>
-[[nodiscard]] constexpr auto rmsnorm_backward(Vector<T, N> const& x, Vector<T, N> const& gain,
-                                              T epsilon,
-                                              Vector<T, N> const& dy) noexcept
-    -> RmsNormGrad<T, N> {
+[[nodiscard]] constexpr auto
+rmsnorm_backward(Vector<T, N> const& x, Vector<T, N> const& gain, T epsilon,
+                 Vector<T, N> const& dy) noexcept -> RmsNormGrad<T, N> {
     T sum_squares{};
     for (std::size_t i = 0; i < N; ++i) {
         sum_squares += x.storage[i] * x.storage[i];
@@ -37,17 +36,17 @@ template <typename T, std::size_t N>
 
     RmsNormGrad<T, N> grad{};
     for (std::size_t i = 0; i < N; ++i) {
-        grad.dx.storage[i] = (inv_rms * gain.storage[i] * dy.storage[i]) -
-                             (coeff * x.storage[i] * projection);
+        grad.dx.storage[i] =
+            (inv_rms * gain.storage[i] * dy.storage[i]) - (coeff * x.storage[i] * projection);
         grad.dgain.storage[i] = dy.storage[i] * x.storage[i] * inv_rms;
     }
     return grad;
 }
 
 template <typename T, std::size_t N>
-[[nodiscard]] constexpr auto layernorm_backward(Vector<T, N> const& x, Vector<T, N> const& gain,
-                                                T epsilon, Vector<T, N> const& dy) noexcept
-    -> LayerNormGrad<T, N> {
+[[nodiscard]] constexpr auto
+layernorm_backward(Vector<T, N> const& x, Vector<T, N> const& gain, T epsilon,
+                   Vector<T, N> const& dy) noexcept -> LayerNormGrad<T, N> {
     T mean{};
     for (std::size_t i = 0; i < N; ++i) {
         mean += x.storage[i];

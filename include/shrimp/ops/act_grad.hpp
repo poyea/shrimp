@@ -21,9 +21,9 @@ template <typename T> [[nodiscard]] constexpr auto gelu_grad_scalar(T x) noexcep
 }
 
 template <typename T, std::size_t... Dims>
-[[nodiscard]] constexpr auto silu_backward(Tensor<T, Dims...> const& x,
-                                           Tensor<T, Dims...> const& dy) noexcept
-    -> Tensor<T, Dims...> {
+[[nodiscard]] constexpr auto
+silu_backward(Tensor<T, Dims...> const& x,
+              Tensor<T, Dims...> const& dy) noexcept -> Tensor<T, Dims...> {
     Tensor<T, Dims...> dx{};
     for (std::size_t i = 0; i < Tensor<T, Dims...>::size; ++i) {
         dx.storage[i] = dy.storage[i] * silu_grad_scalar(x.storage[i]);
@@ -32,9 +32,9 @@ template <typename T, std::size_t... Dims>
 }
 
 template <typename T, std::size_t... Dims>
-[[nodiscard]] constexpr auto gelu_backward(Tensor<T, Dims...> const& x,
-                                           Tensor<T, Dims...> const& dy) noexcept
-    -> Tensor<T, Dims...> {
+[[nodiscard]] constexpr auto
+gelu_backward(Tensor<T, Dims...> const& x,
+              Tensor<T, Dims...> const& dy) noexcept -> Tensor<T, Dims...> {
     Tensor<T, Dims...> dx{};
     for (std::size_t i = 0; i < Tensor<T, Dims...>::size; ++i) {
         dx.storage[i] = dy.storage[i] * gelu_grad_scalar(x.storage[i]);
@@ -59,8 +59,7 @@ template <typename T, std::size_t N>
 template <typename T, std::size_t N>
 [[nodiscard]] constexpr auto softmax_prefix_backward(Vector<T, N> const& out,
                                                      Vector<T, N> const& dy,
-                                                     std::size_t count) noexcept
-    -> Vector<T, N> {
+                                                     std::size_t count) noexcept -> Vector<T, N> {
     T dot{};
     for (std::size_t i = 0; i < count; ++i) {
         dot += out.storage[i] * dy.storage[i];
@@ -74,8 +73,7 @@ template <typename T, std::size_t N>
 
 template <typename T, std::size_t N>
 [[nodiscard]] constexpr auto log_softmax_backward(Vector<T, N> const& out,
-                                                  Vector<T, N> const& dy) noexcept
-    -> Vector<T, N> {
+                                                  Vector<T, N> const& dy) noexcept -> Vector<T, N> {
     T total{};
     for (std::size_t i = 0; i < N; ++i) {
         total += dy.storage[i];
@@ -91,8 +89,7 @@ template <typename T, std::size_t N>
 template <typename T, std::size_t HeadDim>
     requires(HeadDim % 2 == 0)
 [[nodiscard]] constexpr auto rope_backward(Vector<T, HeadDim> const& dy, std::size_t position,
-                                           T theta_base = T{10000}) noexcept
-    -> Vector<T, HeadDim> {
+                                           T theta_base = T{10000}) noexcept -> Vector<T, HeadDim> {
     constexpr std::size_t half = HeadDim / 2;
     Vector<T, HeadDim> dx{};
     for (std::size_t i = 0; i < half; ++i) {
@@ -114,8 +111,7 @@ template <typename T, std::size_t HeadDim, std::size_t MaxSeq>
     requires(HeadDim % 2 == 0)
 [[nodiscard]] constexpr auto rope_backward(Vector<T, HeadDim> const& dy,
                                            RopeTable<T, HeadDim, MaxSeq> const& table,
-                                           std::size_t position) noexcept
-    -> Vector<T, HeadDim> {
+                                           std::size_t position) noexcept -> Vector<T, HeadDim> {
     constexpr std::size_t half = HeadDim / 2;
     Vector<T, HeadDim> dx{};
     std::size_t const base = position * half;

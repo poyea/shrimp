@@ -14,8 +14,7 @@ using poyea::shrimp::ops::layernorm_backward;
 using poyea::shrimp::ops::rmsnorm;
 using poyea::shrimp::ops::rmsnorm_backward;
 
-template <typename T>
-[[nodiscard]] constexpr auto near(T a, T b, T tolerance) noexcept -> bool {
+template <typename T> [[nodiscard]] constexpr auto near(T a, T b, T tolerance) noexcept -> bool {
     return poyea::shrimp::cmath::abs(a - b) <= tolerance;
 }
 
@@ -57,41 +56,36 @@ template <std::size_t N, typename F>
 
 constexpr auto rms_dx_matches() -> bool {
     auto const grad = rmsnorm_backward(x, gain, 0.0, seed);
-    return matches_finite_difference(x, grad.dx, [](auto const& p) {
-        return dot(rmsnorm(p, gain, 0.0), seed);
-    });
+    return matches_finite_difference(
+        x, grad.dx, [](auto const& p) { return dot(rmsnorm(p, gain, 0.0), seed); });
 }
 static_assert(rms_dx_matches());
 
 constexpr auto rms_dgain_matches() -> bool {
     auto const grad = rmsnorm_backward(x, gain, 0.0, seed);
-    return matches_finite_difference(gain, grad.dgain, [](auto const& p) {
-        return dot(rmsnorm(x, p, 0.0), seed);
-    });
+    return matches_finite_difference(gain, grad.dgain,
+                                     [](auto const& p) { return dot(rmsnorm(x, p, 0.0), seed); });
 }
 static_assert(rms_dgain_matches());
 
 constexpr auto ln_dx_matches() -> bool {
     auto const grad = layernorm_backward(x, gain, 0.0, seed);
-    return matches_finite_difference(x, grad.dx, [](auto const& p) {
-        return dot(layernorm(p, gain, bias, 0.0), seed);
-    });
+    return matches_finite_difference(
+        x, grad.dx, [](auto const& p) { return dot(layernorm(p, gain, bias, 0.0), seed); });
 }
 static_assert(ln_dx_matches());
 
 constexpr auto ln_dgain_matches() -> bool {
     auto const grad = layernorm_backward(x, gain, 0.0, seed);
-    return matches_finite_difference(gain, grad.dgain, [](auto const& p) {
-        return dot(layernorm(x, p, bias, 0.0), seed);
-    });
+    return matches_finite_difference(
+        gain, grad.dgain, [](auto const& p) { return dot(layernorm(x, p, bias, 0.0), seed); });
 }
 static_assert(ln_dgain_matches());
 
 constexpr auto ln_dbias_matches() -> bool {
     auto const grad = layernorm_backward(x, gain, 0.0, seed);
-    return matches_finite_difference(bias, grad.dbias, [](auto const& p) {
-        return dot(layernorm(x, gain, p, 0.0), seed);
-    });
+    return matches_finite_difference(
+        bias, grad.dbias, [](auto const& p) { return dot(layernorm(x, gain, p, 0.0), seed); });
 }
 static_assert(ln_dbias_matches());
 

@@ -152,8 +152,8 @@ struct RopeTable {
 
 template <typename T, std::size_t HeadDim, std::size_t MaxSeq>
     requires(HeadDim % 2 == 0)
-[[nodiscard]] constexpr auto make_rope_table(T theta_base) noexcept
-    -> RopeTable<T, HeadDim, MaxSeq> {
+[[nodiscard]] constexpr auto
+make_rope_table(T theta_base) noexcept -> RopeTable<T, HeadDim, MaxSeq> {
     constexpr std::size_t half = HeadDim / 2;
     RopeTable<T, HeadDim, MaxSeq> table{};
     for (std::size_t i = 0; i < half; ++i) {

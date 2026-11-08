@@ -37,8 +37,7 @@ template <typename T, std::size_t N>
 // d/dlogits of cross_entropy: softmax minus the one-hot target.
 template <typename T, std::size_t N>
 [[nodiscard]] constexpr auto cross_entropy_grad(Vector<T, N> const& logits,
-                                                std::size_t target) noexcept
-    -> Vector<T, N> {
+                                                std::size_t target) noexcept -> Vector<T, N> {
     Vector<T, N> grad = softmax(logits);
     grad.storage[target] -= T{1};
     return grad;

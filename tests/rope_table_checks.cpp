@@ -59,8 +59,7 @@ constexpr auto backward_table_matches_formula() -> bool {
 }
 static_assert(backward_table_matches_formula());
 
-template <typename T>
-[[nodiscard]] constexpr auto near(T a, T b, T tolerance) noexcept -> bool {
+template <typename T> [[nodiscard]] constexpr auto near(T a, T b, T tolerance) noexcept -> bool {
     return poyea::shrimp::cmath::abs(a - b) <= tolerance;
 }
 

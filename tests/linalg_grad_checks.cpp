@@ -25,8 +25,7 @@ using poyea::shrimp::ops::scale_backward;
 
 constexpr double h = 1e-5;
 
-template <typename T>
-[[nodiscard]] constexpr auto near(T a, T b, T tolerance) noexcept -> bool {
+template <typename T> [[nodiscard]] constexpr auto near(T a, T b, T tolerance) noexcept -> bool {
     return poyea::shrimp::cmath::abs(a - b) <= tolerance;
 }
 
@@ -66,8 +65,8 @@ constexpr Vector<double, 3> lx{{-0.6, 0.8, 1.9}};
 constexpr Vector<double, 2> ldy{{0.7, -1.3}};
 
 constexpr Matrix<double, 2, 3> ma{{0.6, -0.4, 1.3, -2.05, 0.25, 0.9}};
-constexpr Matrix<double, 3, 4> mb{{0.3, -1.7, 2.1, 0.45, -0.9, 1.25, -0.15, 0.8, 1.1, -0.6, 0.35,
-                                   -1.45}};
+constexpr Matrix<double, 3, 4> mb{
+    {0.3, -1.7, 2.1, 0.45, -0.9, 1.25, -0.15, 0.8, 1.1, -0.6, 0.35, -1.45}};
 constexpr Matrix<double, 2, 4> mc{{0.7, -1.3, 0.2, 1.6, -0.5, 0.95, -2.4, 0.15}};
 
 constexpr Tensor<double, 2, 2> ta{{0.3, -1.7, 2.1, 0.45}};
