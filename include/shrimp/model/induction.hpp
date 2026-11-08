@@ -77,6 +77,10 @@ template <typename T>
     if (c.kv_head_count() != c.heads || c.norm != Norm::RMS || c.act != Act::SwiGLU) {
         return false;
     }
+    // The closed form rotates to match positions and writes a separate output map.
+    if (c.pos != Pos::RoPE || c.bias || c.tie_embeddings) {
+        return false;
+    }
     if (detail::high_begin(c) <= detail::low_pairs) {
         return false;
     }
@@ -141,7 +145,7 @@ template <typename T, ModelConfig C = config>
     }
 
     for (std::size_t v = 0; v < vocab; ++v) {
-        model.lm_head[v, v] = T{1};
+        output_weight(model)[v, v] = T{1};
     }
 
     return model;

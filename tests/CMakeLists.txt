@@ -38,7 +38,8 @@ set(shrimp_constexpr_suites
     attn_backward_checks
     backward_consistency_checks
     backward_checks
-    train_checks)
+    train_checks
+    gpt2_checks)
 
 foreach(suite IN LISTS shrimp_constexpr_suites)
     add_executable(${PROJECT_NAME}_${suite} ${suite}.cpp)

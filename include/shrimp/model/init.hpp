@@ -19,6 +19,9 @@ template <typename T, ModelConfig C>
     T const hidden_sigma = T{1} / cmath::sqrt(static_cast<T>(C.hidden));
 
     fill_normal(model.embedding, rng, embed_sigma);
+    if constexpr (C.pos == Pos::Learned) {
+        fill_normal(model.positions.value, rng, embed_sigma);
+    }
 
     for (std::size_t layer = 0; layer < C.layers; ++layer) {
         auto& block = model.blocks[layer];
@@ -33,7 +36,10 @@ template <typename T, ModelConfig C>
         fill_normal(block.ffn.down, rng, hidden_sigma);
     }
 
-    fill_normal(model.lm_head, rng, embed_sigma);
+    // Biases stay at zero, as GPT-2 initialises them.
+    if constexpr (!C.tie_embeddings) {
+        fill_normal(model.lm_head.value, rng, embed_sigma);
+    }
     return model;
 }
 

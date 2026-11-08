@@ -34,7 +34,6 @@ template <typename T, ModelConfig C>
     constexpr std::size_t kv_dim = C.kv_dim();
     constexpr std::size_t group = C.group_size();
     constexpr T scale = T{1} / cmath::sqrt(static_cast<T>(head_dim));
-    auto const& rotation = ops::rope_table<T, head_dim, C.max_seq, static_cast<T>(C.rope_theta)>;
 
     AttentionTape<T, C> tape{};
 
@@ -42,16 +41,20 @@ template <typename T, ModelConfig C>
         auto const normed = normalize(norm, row(stream, t), static_cast<T>(C.norm_eps));
         set_row(tape.normed, t, normed);
 
-        auto q = ops::linear(w.wq, normed);
-        auto k = ops::linear(w.wk, normed);
-        auto const v = ops::linear(w.wv, normed);
-        for (std::size_t h = 0; h < C.heads; ++h) {
-            auto const q_head = head_slice<T, C.dim, head_dim>(q, h);
-            head_splice(q, h, ops::rope(q_head, rotation, t));
-        }
-        for (std::size_t h = 0; h < C.kv_head_count(); ++h) {
-            auto const k_head = head_slice<T, kv_dim, head_dim>(k, h);
-            head_splice(k, h, ops::rope(k_head, rotation, t));
+        auto q = project<C.bias>(w.wq, w.bq, normed);
+        auto k = project<C.bias>(w.wk, w.bk, normed);
+        auto const v = project<C.bias>(w.wv, w.bv, normed);
+        if constexpr (C.pos == Pos::RoPE) {
+            auto const& rotation =
+                ops::rope_table<T, head_dim, C.max_seq, static_cast<T>(C.rope_theta)>;
+            for (std::size_t h = 0; h < C.heads; ++h) {
+                auto const q_head = head_slice<T, C.dim, head_dim>(q, h);
+                head_splice(q, h, ops::rope(q_head, rotation, t));
+            }
+            for (std::size_t h = 0; h < C.kv_head_count(); ++h) {
+                auto const k_head = head_slice<T, kv_dim, head_dim>(k, h);
+                head_splice(k, h, ops::rope(k_head, rotation, t));
+            }
         }
 
         set_row(tape.queries, t, q);
@@ -105,7 +108,6 @@ constexpr void attend_backward(Attention<T, C> const& w,
     constexpr std::size_t group = C.group_size();
     constexpr T scale = T{1} / cmath::sqrt(static_cast<T>(head_dim));
     constexpr T eps = static_cast<T>(C.norm_eps);
-    auto const& rotation = ops::rope_table<T, head_dim, C.max_seq, static_cast<T>(C.rope_theta)>;
 
     auto const tape = detail::attention_tape<T, C>(w, stream_in, norm, count);
 
@@ -117,6 +119,7 @@ constexpr void attend_backward(Attention<T, C> const& w,
         auto const dout = row(dstream, t);
         auto const back = ops::linear_backward(w.wo, row(tape.context, t), dout);
         accumulate(dw.wo, back.dw);
+        accumulate_present(dw.bo, dout);
 
         auto const query = row(tape.queries, t);
         for (std::size_t h = 0; h < C.heads; ++h) {
@@ -152,23 +155,32 @@ constexpr void attend_backward(Attention<T, C> const& w,
 
     for (std::size_t t = 0; t < count; ++t) {
         auto dq_t = row(dq, t);
-        for (std::size_t h = 0; h < C.heads; ++h) {
-            auto const slice = detail::head_slice<T, C.dim, head_dim>(dq_t, h);
-            detail::head_splice(dq_t, h, ops::rope_backward(slice, rotation, t));
-        }
         auto dk_t = row(dk, t);
-        for (std::size_t h = 0; h < C.kv_head_count(); ++h) {
-            auto const slice = detail::head_slice<T, kv_dim, head_dim>(dk_t, h);
-            detail::head_splice(dk_t, h, ops::rope_backward(slice, rotation, t));
+        if constexpr (C.pos == Pos::RoPE) {
+            auto const& rotation =
+                ops::rope_table<T, head_dim, C.max_seq, static_cast<T>(C.rope_theta)>;
+            for (std::size_t h = 0; h < C.heads; ++h) {
+                auto const slice = detail::head_slice<T, C.dim, head_dim>(dq_t, h);
+                detail::head_splice(dq_t, h, ops::rope_backward(slice, rotation, t));
+            }
+            for (std::size_t h = 0; h < C.kv_head_count(); ++h) {
+                auto const slice = detail::head_slice<T, kv_dim, head_dim>(dk_t, h);
+                detail::head_splice(dk_t, h, ops::rope_backward(slice, rotation, t));
+            }
         }
 
         auto const normed = row(tape.normed, t);
+        auto const dv_t = row(dv, t);
         auto const gq = ops::linear_backward(w.wq, normed, dq_t);
         auto const gk = ops::linear_backward(w.wk, normed, dk_t);
-        auto const gv = ops::linear_backward(w.wv, normed, row(dv, t));
+        auto const gv = ops::linear_backward(w.wv, normed, dv_t);
         accumulate(dw.wq, gq.dw);
         accumulate(dw.wk, gk.dw);
         accumulate(dw.wv, gv.dw);
+        // Bias is added before the rotation, so its gradient is the pre-rope one.
+        accumulate_present(dw.bq, dq_t);
+        accumulate_present(dw.bk, dk_t);
+        accumulate_present(dw.bv, dv_t);
 
         auto dn = gq.dx;
         accumulate(dn, gk.dx);

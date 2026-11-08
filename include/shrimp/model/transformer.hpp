@@ -12,6 +12,7 @@ namespace poyea::shrimp {
 
 enum class Norm { RMS, Layer };
 enum class Act { SwiGLU, GELU };
+enum class Pos { RoPE, Learned };
 
 struct ModelConfig {
     std::size_t vocab;
@@ -23,6 +24,9 @@ struct ModelConfig {
     std::size_t hidden;
     Norm norm = Norm::RMS;
     Act act = Act::SwiGLU;
+    Pos pos = Pos::RoPE;
+    bool bias = false;
+    bool tie_embeddings = false;
     double rope_theta = 10000.0;
     double norm_eps = 1e-5;
 
@@ -45,19 +49,35 @@ struct ModelConfig {
     }
 
     [[nodiscard]] constexpr auto ffn_parameters() const noexcept -> std::size_t {
-        return (act == Act::SwiGLU ? 3 : 2) * dim * hidden;
+        std::size_t const weights = (act == Act::SwiGLU ? 3 : 2) * dim * hidden;
+        if (!bias) {
+            return weights;
+        }
+        return weights + ((act == Act::SwiGLU ? 2 : 1) * hidden) + dim;
+    }
+
+    [[nodiscard]] constexpr auto attn_parameters() const noexcept -> std::size_t {
+        std::size_t const weights = (2 * dim * dim) + (2 * kv_dim() * dim);
+        return bias ? weights + (2 * dim) + (2 * kv_dim()) : weights;
+    }
+
+    [[nodiscard]] constexpr auto position_parameters() const noexcept -> std::size_t {
+        return pos == Pos::Learned ? max_seq * dim : 0;
+    }
+
+    [[nodiscard]] constexpr auto layer_parameters() const noexcept -> std::size_t {
+        return (2 * norm_parameters()) + attn_parameters() + ffn_parameters();
     }
 
     [[nodiscard]] constexpr auto parameters() const noexcept -> std::size_t {
-        std::size_t const attn = (2 * dim * dim) + (2 * kv_dim() * dim);
-        std::size_t const per_layer = (2 * norm_parameters()) + attn + ffn_parameters();
-        return (vocab * dim) + (layers * per_layer) + norm_parameters() + (vocab * dim);
+        return (vocab * dim) + position_parameters() + (layers * layer_parameters()) +
+               norm_parameters() + (tie_embeddings ? 0 : vocab * dim);
     }
 
     [[nodiscard]] constexpr auto valid() const noexcept -> bool {
         return vocab > 0 && dim > 0 && heads > 0 && layers > 0 && max_seq > 0 && hidden > 0 &&
-               (dim % heads) == 0 && (head_dim() % 2) == 0 && kv_head_count() <= heads &&
-               (heads % kv_head_count()) == 0;
+               (dim % heads) == 0 && (pos == Pos::Learned || (head_dim() % 2) == 0) &&
+               kv_head_count() <= heads && (heads % kv_head_count()) == 0;
     }
 };
 
@@ -83,6 +103,16 @@ template <Norm K, typename T, std::size_t N>
 namespace detail {
 
 template <typename...> inline constexpr bool dependent_false = false;
+
+template <bool WithBias, typename T, std::size_t Out, std::size_t In, typename Bias>
+[[nodiscard]] constexpr auto project(Matrix<T, Out, In> const& weight, Bias const& bias,
+                                     Vector<T, In> const& x) noexcept -> Vector<T, Out> {
+    if constexpr (WithBias) {
+        return ops::linear(weight, bias.value, x);
+    } else {
+        return ops::linear(weight, x);
+    }
+}
 
 template <typename T, std::size_t Dim, std::size_t HeadDim>
 [[nodiscard]] constexpr auto head_slice(Vector<T, Dim> const& v,
@@ -111,17 +141,26 @@ template <typename T, ModelConfig C> struct Attention {
     Matrix<T, C.kv_dim(), C.dim> wk{};
     Matrix<T, C.kv_dim(), C.dim> wv{};
     Matrix<T, C.dim, C.dim> wo{};
+    OptionalTensor<T, C.bias, C.dim> bq{};
+    OptionalTensor<T, C.bias, C.kv_dim()> bk{};
+    OptionalTensor<T, C.bias, C.kv_dim()> bv{};
+    OptionalTensor<T, C.bias, C.dim> bo{};
 };
 
 template <typename T, ModelConfig C, Act A> struct FeedForwardWeights {
     Matrix<T, C.hidden, C.dim> gate{};
     Matrix<T, C.hidden, C.dim> up{};
     Matrix<T, C.dim, C.hidden> down{};
+    OptionalTensor<T, C.bias, C.hidden> bgate{};
+    OptionalTensor<T, C.bias, C.hidden> bup{};
+    OptionalTensor<T, C.bias, C.dim> bdown{};
 };
 
 template <typename T, ModelConfig C> struct FeedForwardWeights<T, C, Act::GELU> {
     Matrix<T, C.hidden, C.dim> up{};
     Matrix<T, C.dim, C.hidden> down{};
+    OptionalTensor<T, C.bias, C.hidden> bup{};
+    OptionalTensor<T, C.bias, C.dim> bdown{};
 };
 
 template <typename T, ModelConfig C> using FeedForward = FeedForwardWeights<T, C, C.act>;
@@ -140,10 +179,32 @@ struct Transformer {
     using value_type = T;
 
     Matrix<T, C.vocab, C.dim> embedding{};
+    OptionalTensor<T, C.pos == Pos::Learned, C.max_seq, C.dim> positions{};
     std::array<Block<T, C>, C.layers> blocks{};
     NormWeights<T, C.dim, C.norm> final_norm{};
-    Matrix<T, C.vocab, C.dim> lm_head{};
+    OptionalTensor<T, !C.tie_embeddings, C.vocab, C.dim> lm_head{};
 };
+
+// Tying makes the embedding the output weight, so read it through here.
+template <typename T, ModelConfig C>
+[[nodiscard]] constexpr auto
+output_weight(Transformer<T, C>& model) noexcept -> Matrix<T, C.vocab, C.dim>& {
+    if constexpr (C.tie_embeddings) {
+        return model.embedding;
+    } else {
+        return model.lm_head.value;
+    }
+}
+
+template <typename T, ModelConfig C>
+[[nodiscard]] constexpr auto
+output_weight(Transformer<T, C> const& model) noexcept -> Matrix<T, C.vocab, C.dim> const& {
+    if constexpr (C.tie_embeddings) {
+        return model.embedding;
+    } else {
+        return model.lm_head.value;
+    }
+}
 
 // Not a std::vector: constant evaluation allows allocation only transiently.
 template <std::size_t Capacity> struct TokenSequence {
@@ -192,7 +253,6 @@ constexpr void attend(Attention<T, C> const& w, Matrix<T, C.max_seq, C.dim>& str
     constexpr std::size_t kv_dim = C.kv_dim();
     constexpr std::size_t group = C.group_size();
     constexpr T scale = T{1} / cmath::sqrt(static_cast<T>(head_dim));
-    auto const& rotation = ops::rope_table<T, head_dim, C.max_seq, static_cast<T>(C.rope_theta)>;
 
     Matrix<T, C.max_seq, C.dim> queries{};
     Matrix<T, C.max_seq, kv_dim> keys{};
@@ -200,17 +260,21 @@ constexpr void attend(Attention<T, C> const& w, Matrix<T, C.max_seq, C.dim>& str
 
     for (std::size_t t = 0; t < count; ++t) {
         auto const normed = normalize(norm, row(stream, t), static_cast<T>(C.norm_eps));
-        auto q = ops::linear(w.wq, normed);
-        auto k = ops::linear(w.wk, normed);
-        auto const v = ops::linear(w.wv, normed);
+        auto q = detail::project<C.bias>(w.wq, w.bq, normed);
+        auto k = detail::project<C.bias>(w.wk, w.bk, normed);
+        auto const v = detail::project<C.bias>(w.wv, w.bv, normed);
 
-        for (std::size_t h = 0; h < C.heads; ++h) {
-            auto const q_head = detail::head_slice<T, C.dim, head_dim>(q, h);
-            detail::head_splice(q, h, ops::rope(q_head, rotation, t));
-        }
-        for (std::size_t h = 0; h < C.kv_head_count(); ++h) {
-            auto const k_head = detail::head_slice<T, kv_dim, head_dim>(k, h);
-            detail::head_splice(k, h, ops::rope(k_head, rotation, t));
+        if constexpr (C.pos == Pos::RoPE) {
+            auto const& rotation =
+                ops::rope_table<T, head_dim, C.max_seq, static_cast<T>(C.rope_theta)>;
+            for (std::size_t h = 0; h < C.heads; ++h) {
+                auto const q_head = detail::head_slice<T, C.dim, head_dim>(q, h);
+                detail::head_splice(q, h, ops::rope(q_head, rotation, t));
+            }
+            for (std::size_t h = 0; h < C.kv_head_count(); ++h) {
+                auto const k_head = detail::head_slice<T, kv_dim, head_dim>(k, h);
+                detail::head_splice(k, h, ops::rope(k_head, rotation, t));
+            }
         }
 
         set_row(queries, t, q);
@@ -243,7 +307,7 @@ constexpr void attend(Attention<T, C> const& w, Matrix<T, C.max_seq, C.dim>& str
             detail::head_splice(context, h, blended);
         }
 
-        auto const projected = ops::linear(w.wo, context);
+        auto const projected = detail::project<C.bias>(w.wo, w.bo, context);
         for (std::size_t i = 0; i < C.dim; ++i) {
             stream.storage[(t * C.dim) + i] += projected.storage[i];
         }
@@ -258,11 +322,12 @@ constexpr void feed_forward(FeedForward<T, C> const& w, Matrix<T, C.max_seq, C.d
 
         Vector<T, C.dim> projected{};
         if constexpr (C.act == Act::SwiGLU) {
-            auto const gated = ops::silu(ops::linear(w.gate, normed));
-            auto const lifted = ops::linear(w.up, normed);
-            projected = ops::linear(w.down, ops::hadamard(gated, lifted));
+            auto const gated = ops::silu(detail::project<C.bias>(w.gate, w.bgate, normed));
+            auto const lifted = detail::project<C.bias>(w.up, w.bup, normed);
+            projected = detail::project<C.bias>(w.down, w.bdown, ops::hadamard(gated, lifted));
         } else {
-            projected = ops::linear(w.down, ops::gelu(ops::linear(w.up, normed)));
+            auto const activated = ops::gelu(detail::project<C.bias>(w.up, w.bup, normed));
+            projected = detail::project<C.bias>(w.down, w.bdown, activated);
         }
 
         for (std::size_t i = 0; i < C.dim; ++i) {
@@ -272,14 +337,25 @@ constexpr void feed_forward(FeedForward<T, C> const& w, Matrix<T, C.max_seq, C.d
 }
 
 template <typename T, ModelConfig C, std::size_t Capacity>
+[[nodiscard]] constexpr auto embed(Transformer<T, C> const& model,
+                                   TokenSequence<Capacity> const& input,
+                                   std::size_t count) -> Matrix<T, C.max_seq, C.dim> {
+    Matrix<T, C.max_seq, C.dim> stream{};
+    for (std::size_t t = 0; t < count; ++t) {
+        set_row(stream, t, row(model.embedding, input[t]));
+        if constexpr (C.pos == Pos::Learned) {
+            add_to_row(stream, t, row(model.positions.value, t));
+        }
+    }
+    return stream;
+}
+
+template <typename T, ModelConfig C, std::size_t Capacity>
 [[nodiscard]] constexpr auto forward(Transformer<T, C> const& model,
                                      TokenSequence<Capacity> const& input) -> Vector<T, C.vocab> {
     std::size_t const count = input.size() < C.max_seq ? input.size() : C.max_seq;
 
-    Matrix<T, C.max_seq, C.dim> stream{};
-    for (std::size_t t = 0; t < count; ++t) {
-        set_row(stream, t, row(model.embedding, input[t]));
-    }
+    auto stream = embed<T, C>(model, input, count);
 
     for (std::size_t layer = 0; layer < C.layers; ++layer) {
         auto const& block = model.blocks[layer];
@@ -289,7 +365,7 @@ template <typename T, ModelConfig C, std::size_t Capacity>
 
     auto const last =
         normalize(model.final_norm, row(stream, count - 1), static_cast<T>(C.norm_eps));
-    return ops::linear(model.lm_head, last);
+    return ops::linear(output_weight(model), last);
 }
 
 template <std::size_t MaxNew, typename T, ModelConfig C, std::size_t Capacity>

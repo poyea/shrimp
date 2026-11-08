@@ -78,6 +78,28 @@ struct Tensor {
     }
 };
 
+// Storage that exists only when a config asks for it: an absent tensor costs no
+// constant-evaluation state.
+template <typename T, bool Present, std::size_t... Dims> struct OptionalTensor {
+    Tensor<T, Dims...> value{};
+};
+
+template <typename T, std::size_t... Dims> struct OptionalTensor<T, false, Dims...> {};
+
+template <typename T, bool Present, std::size_t... Dims, typename Fn>
+constexpr void visit_present(OptionalTensor<T, Present, Dims...>& slot, Fn&& fn) {
+    if constexpr (Present) {
+        fn(slot.value);
+    }
+}
+
+template <typename T, bool Present, std::size_t... Dims, typename Fn>
+constexpr void visit_present(OptionalTensor<T, Present, Dims...> const& slot, Fn&& fn) {
+    if constexpr (Present) {
+        fn(slot.value);
+    }
+}
+
 template <typename T, std::size_t N> using Vector = Tensor<T, N>;
 
 template <typename T, std::size_t Rows, std::size_t Cols> using Matrix = Tensor<T, Rows, Cols>;

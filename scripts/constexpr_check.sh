@@ -24,7 +24,7 @@ echo "budget   : ${BUDGET[*]}"
 echo
 
 total_start=$(date +%s)
-for suite in constexpr_checks induction_checks; do
+for suite in constexpr_checks induction_checks gpt2_checks; do
     printf '%-18s ' "${suite}"
     start=$(date +%s)
     "${CXX}" -std=c++26 -Wall -Wextra -Wpedantic \

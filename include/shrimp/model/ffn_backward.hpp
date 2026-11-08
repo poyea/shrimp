@@ -28,13 +28,14 @@ feed_forward_backward(FeedForward<T, C> const& w, Matrix<T, C.max_seq, C.dim> co
 
         Vector<T, C.dim> dn{};
         if constexpr (C.act == Act::SwiGLU) {
-            auto const z_gate = ops::linear(w.gate, n);
+            auto const z_gate = detail::project<C.bias>(w.gate, w.bgate, n);
             auto const gated = ops::silu(z_gate);
-            auto const lifted = ops::linear(w.up, n);
+            auto const lifted = detail::project<C.bias>(w.up, w.bup, n);
             auto const mixed = ops::hadamard(gated, lifted);
 
             auto const down = ops::linear_backward(w.down, mixed, dout);
             accumulate(dw.down, down.dw);
+            accumulate_present(dw.bdown, dout);
 
             auto const dz_gate = ops::silu_backward(z_gate, ops::hadamard(down.dx, lifted));
             auto const dlifted = ops::hadamard(down.dx, gated);
@@ -43,17 +44,21 @@ feed_forward_backward(FeedForward<T, C> const& w, Matrix<T, C.max_seq, C.dim> co
             auto const from_up = ops::linear_backward(w.up, n, dlifted);
             accumulate(dw.gate, from_gate.dw);
             accumulate(dw.up, from_up.dw);
+            accumulate_present(dw.bgate, dz_gate);
+            accumulate_present(dw.bup, dlifted);
             dn = ops::add(from_gate.dx, from_up.dx);
         } else if constexpr (C.act == Act::GELU) {
-            auto const z = ops::linear(w.up, n);
+            auto const z = detail::project<C.bias>(w.up, w.bup, n);
             auto const activated = ops::gelu(z);
 
             auto const down = ops::linear_backward(w.down, activated, dout);
             accumulate(dw.down, down.dw);
+            accumulate_present(dw.bdown, dout);
 
             auto const dz = ops::gelu_backward(z, down.dx);
             auto const up = ops::linear_backward(w.up, n, dz);
             accumulate(dw.up, up.dw);
+            accumulate_present(dw.bup, dz);
             dn = up.dx;
         } else {
             static_assert(detail::dependent_false<T>, "unhandled Act enumerator");

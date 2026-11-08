@@ -28,17 +28,26 @@ template <typename T, ModelConfig C> struct AttentionGradients {
     Matrix<T, C.kv_dim(), C.dim> wk{};
     Matrix<T, C.kv_dim(), C.dim> wv{};
     Matrix<T, C.dim, C.dim> wo{};
+    OptionalTensor<T, C.bias, C.dim> bq{};
+    OptionalTensor<T, C.bias, C.kv_dim()> bk{};
+    OptionalTensor<T, C.bias, C.kv_dim()> bv{};
+    OptionalTensor<T, C.bias, C.dim> bo{};
 };
 
 template <typename T, ModelConfig C, Act A> struct FeedForwardGradientsFor {
     Matrix<T, C.hidden, C.dim> gate{};
     Matrix<T, C.hidden, C.dim> up{};
     Matrix<T, C.dim, C.hidden> down{};
+    OptionalTensor<T, C.bias, C.hidden> bgate{};
+    OptionalTensor<T, C.bias, C.hidden> bup{};
+    OptionalTensor<T, C.bias, C.dim> bdown{};
 };
 
 template <typename T, ModelConfig C> struct FeedForwardGradientsFor<T, C, Act::GELU> {
     Matrix<T, C.hidden, C.dim> up{};
     Matrix<T, C.dim, C.hidden> down{};
+    OptionalTensor<T, C.bias, C.hidden> bup{};
+    OptionalTensor<T, C.bias, C.dim> bdown{};
 };
 
 template <typename T, ModelConfig C>
@@ -58,10 +67,32 @@ struct Gradients {
     using value_type = T;
 
     Matrix<T, C.vocab, C.dim> embedding{};
+    OptionalTensor<T, C.pos == Pos::Learned, C.max_seq, C.dim> positions{};
     std::array<BlockGradients<T, C>, C.layers> blocks{};
     NormGradients<T, C.dim, C.norm> final_norm{};
-    Matrix<T, C.vocab, C.dim> lm_head{};
+    OptionalTensor<T, !C.tie_embeddings, C.vocab, C.dim> lm_head{};
 };
+
+// Tied weights share one gradient, so both paths accumulate into the embedding.
+template <typename T, ModelConfig C>
+[[nodiscard]] constexpr auto
+output_weight(Gradients<T, C>& g) noexcept -> Matrix<T, C.vocab, C.dim>& {
+    if constexpr (C.tie_embeddings) {
+        return g.embedding;
+    } else {
+        return g.lm_head.value;
+    }
+}
+
+template <typename T, ModelConfig C>
+[[nodiscard]] constexpr auto
+output_weight(Gradients<T, C> const& g) noexcept -> Matrix<T, C.vocab, C.dim> const& {
+    if constexpr (C.tie_embeddings) {
+        return g.embedding;
+    } else {
+        return g.lm_head.value;
+    }
+}
 
 template <typename T, std::size_t... Dims>
 constexpr void accumulate(Tensor<T, Dims...>& into, Tensor<T, Dims...> const& delta) noexcept {
@@ -85,6 +116,22 @@ constexpr void descend(Tensor<T, Dims...>& weight, Tensor<T, Dims...> const& gra
     }
 }
 
+template <typename T, bool Present, std::size_t... Dims>
+constexpr void accumulate_present(OptionalTensor<T, Present, Dims...>& into,
+                                  Tensor<T, Dims...> const& delta) noexcept {
+    if constexpr (Present) {
+        accumulate(into.value, delta);
+    }
+}
+
+template <typename T, bool Present, std::size_t... Dims>
+constexpr void descend_present(OptionalTensor<T, Present, Dims...>& weight,
+                               OptionalTensor<T, Present, Dims...> const& grad, T rate) noexcept {
+    if constexpr (Present) {
+        descend(weight.value, grad.value, rate);
+    }
+}
+
 template <typename T, std::size_t... Dims>
 [[nodiscard]] constexpr auto sum_squares(Tensor<T, Dims...> const& t) noexcept -> T {
     T total{};
@@ -97,6 +144,7 @@ template <typename T, std::size_t... Dims>
 template <typename T, ModelConfig C, typename Fn>
 constexpr void for_each_tensor(Gradients<T, C>& g, Fn&& fn) {
     fn(g.embedding);
+    visit_present(g.positions, fn);
     for (std::size_t l = 0; l < C.layers; ++l) {
         auto& b = g.blocks[l];
         fn(b.attn_norm.gain);
@@ -107,21 +155,28 @@ constexpr void for_each_tensor(Gradients<T, C>& g, Fn&& fn) {
         fn(b.attn.wk);
         fn(b.attn.wv);
         fn(b.attn.wo);
+        visit_present(b.attn.bq, fn);
+        visit_present(b.attn.bk, fn);
+        visit_present(b.attn.bv, fn);
+        visit_present(b.attn.bo, fn);
         fn(b.ffn_norm.gain);
         if constexpr (C.norm == Norm::Layer) {
             fn(b.ffn_norm.bias);
         }
         if constexpr (C.act == Act::SwiGLU) {
             fn(b.ffn.gate);
+            visit_present(b.ffn.bgate, fn);
         }
         fn(b.ffn.up);
         fn(b.ffn.down);
+        visit_present(b.ffn.bup, fn);
+        visit_present(b.ffn.bdown, fn);
     }
     fn(g.final_norm.gain);
     if constexpr (C.norm == Norm::Layer) {
         fn(g.final_norm.bias);
     }
-    fn(g.lm_head);
+    visit_present(g.lm_head, fn);
 }
 
 template <typename T, ModelConfig C> constexpr void zero_gradients(Gradients<T, C>& g) {
@@ -146,6 +201,7 @@ template <typename T, ModelConfig C>
 template <typename T, ModelConfig C>
 constexpr void sgd_step(Transformer<T, C>& model, Gradients<T, C> const& g, T rate) {
     descend(model.embedding, g.embedding, rate);
+    descend_present(model.positions, g.positions, rate);
     for (std::size_t l = 0; l < C.layers; ++l) {
         auto& w = model.blocks[l];
         auto const& d = g.blocks[l];
@@ -157,21 +213,28 @@ constexpr void sgd_step(Transformer<T, C>& model, Gradients<T, C> const& g, T ra
         descend(w.attn.wk, d.attn.wk, rate);
         descend(w.attn.wv, d.attn.wv, rate);
         descend(w.attn.wo, d.attn.wo, rate);
+        descend_present(w.attn.bq, d.attn.bq, rate);
+        descend_present(w.attn.bk, d.attn.bk, rate);
+        descend_present(w.attn.bv, d.attn.bv, rate);
+        descend_present(w.attn.bo, d.attn.bo, rate);
         descend(w.ffn_norm.gain, d.ffn_norm.gain, rate);
         if constexpr (C.norm == Norm::Layer) {
             descend(w.ffn_norm.bias, d.ffn_norm.bias, rate);
         }
         if constexpr (C.act == Act::SwiGLU) {
             descend(w.ffn.gate, d.ffn.gate, rate);
+            descend_present(w.ffn.bgate, d.ffn.bgate, rate);
         }
         descend(w.ffn.up, d.ffn.up, rate);
         descend(w.ffn.down, d.ffn.down, rate);
+        descend_present(w.ffn.bup, d.ffn.bup, rate);
+        descend_present(w.ffn.bdown, d.ffn.bdown, rate);
     }
     descend(model.final_norm.gain, g.final_norm.gain, rate);
     if constexpr (C.norm == Norm::Layer) {
         descend(model.final_norm.bias, g.final_norm.bias, rate);
     }
-    descend(model.lm_head, g.lm_head, rate);
+    descend_present(model.lm_head, g.lm_head, rate);
 }
 
 template <typename T, ModelConfig C>

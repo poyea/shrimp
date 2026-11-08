@@ -31,10 +31,7 @@ forward_train(Transformer<T, C> const& model,
     std::size_t const count = input.size() < C.max_seq ? input.size() : C.max_seq;
     tape.count = count;
 
-    Matrix<T, C.max_seq, C.dim> stream{};
-    for (std::size_t t = 0; t < count; ++t) {
-        set_row(stream, t, row(model.embedding, input[t]));
-    }
+    auto stream = embed<T, C>(model, input, count);
 
     for (std::size_t layer = 0; layer < C.layers; ++layer) {
         auto const& block = model.blocks[layer];
@@ -49,7 +46,7 @@ forward_train(Transformer<T, C> const& model,
     for (std::size_t t = 0; t < count; ++t) {
         auto const normed = normalize(model.final_norm, row(stream, t), eps);
         set_row(tape.final_normed, t, normed);
-        set_row(tape.logits, t, ops::linear(model.lm_head, normed));
+        set_row(tape.logits, t, ops::linear(output_weight(model), normed));
     }
     return tape;
 }
@@ -81,8 +78,9 @@ constexpr auto backward(Transformer<T, C> const& model, TokenSequence<Capacity> 
     for (std::size_t t = 0; t + 1 < count; ++t) {
         auto const dlogits =
             ops::scale(ops::cross_entropy_grad(row(tape.logits, t), input[t + 1]), inv);
-        auto const head = ops::linear_backward(model.lm_head, row(tape.final_normed, t), dlogits);
-        accumulate(grads.lm_head, head.dw);
+        auto const head =
+            ops::linear_backward(output_weight(model), row(tape.final_normed, t), dlogits);
+        accumulate(output_weight(grads), head.dw);
         auto const dx = norm_backward_into<T, C>(model.final_norm, row(tape.final_stream, t),
                                                  head.dx, grads.final_norm, eps);
         set_row(dstream, t, dx);
@@ -98,7 +96,11 @@ constexpr auto backward(Transformer<T, C> const& model, TokenSequence<Capacity> 
     }
 
     for (std::size_t t = 0; t < count; ++t) {
-        add_to_row(grads.embedding, input[t], row(dstream, t));
+        auto const dx = row(dstream, t);
+        add_to_row(grads.embedding, input[t], dx);
+        if constexpr (C.pos == Pos::Learned) {
+            add_to_row(grads.positions.value, t, dx);
+        }
     }
     return sequence_loss(tape, input);
 }

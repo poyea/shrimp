@@ -14,6 +14,7 @@ using poyea::shrimp::Matrix;
 using poyea::shrimp::ModelConfig;
 using poyea::shrimp::TokenSequence;
 using poyea::shrimp::Transformer;
+using poyea::shrimp::output_weight;
 
 template <typename T> [[nodiscard]] constexpr auto near(T a, T b, T tolerance) noexcept -> bool {
     return poyea::shrimp::cmath::abs(a - b) <= tolerance;
@@ -116,7 +117,7 @@ constexpr auto short_sequence_has_zero_loss() -> bool {
     for (auto const v : grads.embedding.storage) {
         grads_zero = grads_zero && v == 0.0;
     }
-    for (auto const v : grads.lm_head.storage) {
+    for (auto const v : output_weight(grads).storage) {
         grads_zero = grads_zero && v == 0.0;
     }
     return loss_zero && back_zero && grads_zero;
@@ -134,7 +135,7 @@ constexpr auto backward_accumulates() -> bool {
         if (!near(grads.embedding.storage[i], 2.0 * once.embedding.storage[i], 1e-12)) {
             return false;
         }
-        if (!near(grads.lm_head.storage[i], 2.0 * once.lm_head.storage[i], 1e-12)) {
+        if (!near(output_weight(grads).storage[i], 2.0 * output_weight(once).storage[i], 1e-12)) {
             return false;
         }
         if (!near(grads.blocks[0].attn.wq.storage[i], 2.0 * once.blocks[0].attn.wq.storage[i],
@@ -170,7 +171,7 @@ static_assert(last_position_logits_ignored());
 static_assert(matches_fd(model, input(), [](auto& m) -> auto& { return m.embedding; }, 0));
 // Token 1 repeats at positions 0 and 3, so its row receives two scatter contributions.
 static_assert(matches_fd(model, input(), [](auto& m) -> auto& { return m.embedding; }, cfg.dim));
-static_assert(matches_fd(model, input(), [](auto& m) -> auto& { return m.lm_head; }, 0));
+static_assert(matches_fd(model, input(), [](auto& m) -> auto& { return output_weight(m); }, 0));
 static_assert(matches_fd(model, input(), [](auto& m) -> auto& { return m.final_norm.gain; }, 0));
 static_assert(matches_fd(model, input(), [](auto& m) -> auto& { return m.blocks[0].attn.wq; }, 0));
 static_assert(matches_fd(model, input(), [](auto& m) -> auto& { return m.blocks[0].attn.wk; }, 0));
