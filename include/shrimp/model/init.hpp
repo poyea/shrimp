@@ -26,7 +26,9 @@ template <typename T, ModelConfig C>
         fill_normal(block.attn.wk, rng, attn_sigma);
         fill_normal(block.attn.wv, rng, attn_sigma);
         fill_normal(block.attn.wo, rng, attn_sigma);
-        fill_normal(block.ffn.gate, rng, attn_sigma);
+        if constexpr (C.act == Act::SwiGLU) {
+            fill_normal(block.ffn.gate, rng, attn_sigma);
+        }
         fill_normal(block.ffn.up, rng, attn_sigma);
         fill_normal(block.ffn.down, rng, hidden_sigma);
     }

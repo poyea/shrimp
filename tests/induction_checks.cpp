@@ -105,6 +105,63 @@ constexpr auto logits_are_well_formed() -> bool {
 static_assert(logits_are_well_formed());
 } // namespace random_init
 
+
+namespace axes {
+
+using poyea::shrimp::Act;
+using poyea::shrimp::ModelConfig;
+using poyea::shrimp::Norm;
+
+constexpr ModelConfig gqa{.vocab = 8, .dim = 16, .heads = 4, .kv_heads = 2,
+                          .layers = 1, .max_seq = 8, .hidden = 16};
+constexpr ModelConfig mqa{.vocab = 8, .dim = 16, .heads = 4, .kv_heads = 1,
+                          .layers = 1, .max_seq = 8, .hidden = 16};
+constexpr ModelConfig gpt{.vocab = 8, .dim = 8, .heads = 1, .layers = 1,
+                          .max_seq = 4, .hidden = 8,
+                          .norm = Norm::Layer, .act = Act::GELU};
+
+static_assert(cfg.kv_head_count() == 1 && cfg.group_size() == 1);
+static_assert(gqa.valid() && gqa.kv_dim() == 8 && gqa.group_size() == 2);
+static_assert(mqa.valid() && mqa.kv_dim() == 4 && mqa.group_size() == 4);
+static_assert(gpt.valid() && gpt.norm_parameters() == 16 && gpt.ffn_parameters() == 128);
+
+static_assert(gqa.parameters() == 1840);
+static_assert(mqa.parameters() == 1712);
+static_assert(gpt.parameters() == 560);
+
+constexpr ModelConfig bad_kv{.vocab = 8, .dim = 16, .heads = 4, .kv_heads = 3,
+                             .layers = 1, .max_seq = 8, .hidden = 16};
+static_assert(!bad_kv.valid());
+
+static_assert(!poyea::shrimp::induction::construction_is_sound<double>(gqa));
+static_assert(!poyea::shrimp::induction::construction_is_sound<double>(gpt));
+
+constexpr auto gqa_model = poyea::shrimp::random_transformer<double, gqa>(7);
+constexpr auto gpt_model = poyea::shrimp::random_transformer<double, gpt>(7);
+
+template <poyea::shrimp::ModelConfig C>
+constexpr auto logits_well_formed(poyea::shrimp::Transformer<double, C> const& m,
+                                  poyea::shrimp::TokenSequence<C.max_seq> const& in)
+    -> bool {
+    auto const logits = poyea::shrimp::forward(m, in);
+    bool varies = false;
+    for (std::size_t v = 0; v < C.vocab; ++v) {
+        if (poyea::shrimp::cmath::is_nan(logits.storage[v]) ||
+            poyea::shrimp::cmath::is_inf(logits.storage[v])) {
+            return false;
+        }
+        if (logits.storage[v] != logits.storage[0]) {
+            varies = true;
+        }
+    }
+    return varies;
+}
+
+static_assert(logits_well_formed<gqa>(gqa_model, tokens<gqa.max_seq>(1, 2, 3)));
+static_assert(logits_well_formed<gpt>(gpt_model, tokens<gpt.max_seq>(1, 2, 3)));
+
+} // namespace axes
+
 } // namespace
 
 auto main() -> int {

@@ -75,6 +75,9 @@ template <typename T>
     if (!c.valid() || c.dim != 2 * c.vocab || c.heads != 1 || c.layers != 2) {
         return false;
     }
+    if (c.kv_head_count() != c.heads || c.norm != Norm::RMS || c.act != Act::SwiGLU) {
+        return false;
+    }
     if (detail::high_begin(c) <= detail::low_pairs) {
         return false;
     }

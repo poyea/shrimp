@@ -10,13 +10,19 @@
 
 namespace poyea::shrimp {
 
+enum class Norm { RMS, Layer };
+enum class Act { SwiGLU, GELU };
+
 struct ModelConfig {
     std::size_t vocab;
     std::size_t dim;
     std::size_t heads;
+    std::size_t kv_heads = 0; // 0 means same as heads
     std::size_t layers;
     std::size_t max_seq;
     std::size_t hidden;
+    Norm norm = Norm::RMS;
+    Act act = Act::SwiGLU;
     double rope_theta = 10000.0;
     double norm_eps = 1e-5;
 
@@ -24,16 +30,60 @@ struct ModelConfig {
         return dim / heads;
     }
 
+    [[nodiscard]] constexpr auto kv_head_count() const noexcept -> std::size_t {
+        return kv_heads == 0 ? heads : kv_heads;
+    }
+
+    [[nodiscard]] constexpr auto kv_dim() const noexcept -> std::size_t {
+        return kv_head_count() * head_dim();
+    }
+
+    [[nodiscard]] constexpr auto group_size() const noexcept -> std::size_t {
+        return heads / kv_head_count();
+    }
+
+    [[nodiscard]] constexpr auto norm_parameters() const noexcept -> std::size_t {
+        return norm == Norm::Layer ? 2 * dim : dim;
+    }
+
+    [[nodiscard]] constexpr auto ffn_parameters() const noexcept -> std::size_t {
+        return (act == Act::SwiGLU ? 3 : 2) * dim * hidden;
+    }
+
     [[nodiscard]] constexpr auto parameters() const noexcept -> std::size_t {
-        std::size_t const per_layer = dim + (4 * dim * dim) + dim + (3 * dim * hidden);
-        return (vocab * dim) + (layers * per_layer) + dim + (vocab * dim);
+        std::size_t const attn = (2 * dim * dim) + (2 * kv_dim() * dim);
+        std::size_t const per_layer = (2 * norm_parameters()) + attn + ffn_parameters();
+        return (vocab * dim) + (layers * per_layer) + norm_parameters() + (vocab * dim);
     }
 
     [[nodiscard]] constexpr auto valid() const noexcept -> bool {
         return vocab > 0 && dim > 0 && heads > 0 && layers > 0 && max_seq > 0 &&
-               hidden > 0 && (dim % heads) == 0 && (head_dim() % 2) == 0;
+               hidden > 0 && (dim % heads) == 0 && (head_dim() % 2) == 0 &&
+               kv_head_count() <= heads && (heads % kv_head_count()) == 0;
     }
 };
+
+template <typename T, std::size_t N, Norm K>
+struct NormWeights {
+    Vector<T, N> gain = Vector<T, N>::filled(T{1});
+};
+
+template <typename T, std::size_t N>
+struct NormWeights<T, N, Norm::Layer> {
+    Vector<T, N> gain = Vector<T, N>::filled(T{1});
+    Vector<T, N> bias{};
+};
+
+template <Norm K, typename T, std::size_t N>
+[[nodiscard]] constexpr auto normalize(NormWeights<T, N, K> const& w,
+                                       Vector<T, N> const& x, T epsilon) noexcept
+    -> Vector<T, N> {
+    if constexpr (K == Norm::Layer) {
+        return ops::layernorm(x, w.gain, w.bias, epsilon);
+    } else {
+        return ops::rmsnorm(x, w.gain, epsilon);
+    }
+}
 
 namespace detail {
 
@@ -62,23 +112,32 @@ constexpr void head_splice(Vector<T, Dim>& v, std::size_t head,
 template <typename T, ModelConfig C>
 struct Attention {
     Matrix<T, C.dim, C.dim> wq{};
-    Matrix<T, C.dim, C.dim> wk{};
-    Matrix<T, C.dim, C.dim> wv{};
+    Matrix<T, C.kv_dim(), C.dim> wk{};
+    Matrix<T, C.kv_dim(), C.dim> wv{};
     Matrix<T, C.dim, C.dim> wo{};
 };
 
-template <typename T, ModelConfig C>
-struct FeedForward {
+template <typename T, ModelConfig C, Act A>
+struct FeedForwardWeights {
     Matrix<T, C.hidden, C.dim> gate{};
     Matrix<T, C.hidden, C.dim> up{};
     Matrix<T, C.dim, C.hidden> down{};
 };
 
 template <typename T, ModelConfig C>
+struct FeedForwardWeights<T, C, Act::GELU> {
+    Matrix<T, C.hidden, C.dim> up{};
+    Matrix<T, C.dim, C.hidden> down{};
+};
+
+template <typename T, ModelConfig C>
+using FeedForward = FeedForwardWeights<T, C, C.act>;
+
+template <typename T, ModelConfig C>
 struct Block {
-    Vector<T, C.dim> attn_norm = Vector<T, C.dim>::filled(T{1});
+    NormWeights<T, C.dim, C.norm> attn_norm{};
     Attention<T, C> attn{};
-    Vector<T, C.dim> ffn_norm = Vector<T, C.dim>::filled(T{1});
+    NormWeights<T, C.dim, C.norm> ffn_norm{};
     FeedForward<T, C> ffn{};
 };
 
@@ -90,7 +149,7 @@ struct Transformer {
 
     Matrix<T, C.vocab, C.dim> embedding{};
     std::array<Block<T, C>, C.layers> blocks{};
-    Vector<T, C.dim> final_norm = Vector<T, C.dim>::filled(T{1});
+    NormWeights<T, C.dim, C.norm> final_norm{};
     Matrix<T, C.vocab, C.dim> lm_head{};
 };
 
@@ -138,25 +197,28 @@ template <std::size_t Capacity, typename... Ids>
 
 template <typename T, ModelConfig C>
 constexpr void attend(Attention<T, C> const& w, Matrix<T, C.max_seq, C.dim>& stream,
-                      Vector<T, C.dim> const& norm_gain, std::size_t count) {
+                      NormWeights<T, C.dim, C.norm> const& norm, std::size_t count) {
     constexpr std::size_t head_dim = C.head_dim();
+    constexpr std::size_t kv_dim = C.kv_dim();
+    constexpr std::size_t group = C.group_size();
     constexpr T scale = T{1} / cmath::sqrt(static_cast<T>(head_dim));
 
     Matrix<T, C.max_seq, C.dim> queries{};
-    Matrix<T, C.max_seq, C.dim> keys{};
-    Matrix<T, C.max_seq, C.dim> values{};
+    Matrix<T, C.max_seq, kv_dim> keys{};
+    Matrix<T, C.max_seq, kv_dim> values{};
 
     for (std::size_t t = 0; t < count; ++t) {
-        auto const normed =
-            ops::rmsnorm(row(stream, t), norm_gain, static_cast<T>(C.norm_eps));
+        auto const normed = normalize(norm, row(stream, t), static_cast<T>(C.norm_eps));
         auto q = ops::linear(w.wq, normed);
         auto k = ops::linear(w.wk, normed);
         auto const v = ops::linear(w.wv, normed);
 
         for (std::size_t h = 0; h < C.heads; ++h) {
             auto const q_head = detail::head_slice<T, C.dim, head_dim>(q, h);
-            auto const k_head = detail::head_slice<T, C.dim, head_dim>(k, h);
             detail::head_splice(q, h, ops::rope(q_head, t, static_cast<T>(C.rope_theta)));
+        }
+        for (std::size_t h = 0; h < C.kv_head_count(); ++h) {
+            auto const k_head = detail::head_slice<T, kv_dim, head_dim>(k, h);
             detail::head_splice(k, h, ops::rope(k_head, t, static_cast<T>(C.rope_theta)));
         }
 
@@ -167,20 +229,24 @@ constexpr void attend(Attention<T, C> const& w, Matrix<T, C.max_seq, C.dim>& str
 
     for (std::size_t t = 0; t < count; ++t) {
         Vector<T, C.dim> context{};
+        auto const query = row(queries, t);
 
         for (std::size_t h = 0; h < C.heads; ++h) {
-            auto const q_head = detail::head_slice<T, C.dim, head_dim>(row(queries, t), h);
+            std::size_t const kv = h / group;
+            auto const q_head = detail::head_slice<T, C.dim, head_dim>(query, h);
 
             Vector<T, C.max_seq> scores{};
             for (std::size_t j = 0; j <= t; ++j) {
-                auto const k_head = detail::head_slice<T, C.dim, head_dim>(row(keys, j), h);
+                auto const k_head =
+                    detail::head_slice<T, kv_dim, head_dim>(row(keys, j), kv);
                 scores.storage[j] = ops::dot(q_head, k_head) * scale;
             }
             auto const weights = ops::softmax_prefix(scores, t + 1);
 
             Vector<T, head_dim> blended{};
             for (std::size_t j = 0; j <= t; ++j) {
-                auto const v_head = detail::head_slice<T, C.dim, head_dim>(row(values, j), h);
+                auto const v_head =
+                    detail::head_slice<T, kv_dim, head_dim>(row(values, j), kv);
                 for (std::size_t i = 0; i < head_dim; ++i) {
                     blended.storage[i] += weights.storage[j] * v_head.storage[i];
                 }
@@ -196,14 +262,20 @@ constexpr void attend(Attention<T, C> const& w, Matrix<T, C.max_seq, C.dim>& str
 }
 
 template <typename T, ModelConfig C>
-constexpr void feed_forward(FeedForward<T, C> const& w, Matrix<T, C.max_seq, C.dim>& stream,
-                            Vector<T, C.dim> const& norm_gain, std::size_t count) {
+constexpr void feed_forward(FeedForward<T, C> const& w,
+                            Matrix<T, C.max_seq, C.dim>& stream,
+                            NormWeights<T, C.dim, C.norm> const& norm, std::size_t count) {
     for (std::size_t t = 0; t < count; ++t) {
-        auto const normed =
-            ops::rmsnorm(row(stream, t), norm_gain, static_cast<T>(C.norm_eps));
-        auto const gated = ops::silu(ops::linear(w.gate, normed));
-        auto const lifted = ops::linear(w.up, normed);
-        auto const projected = ops::linear(w.down, ops::hadamard(gated, lifted));
+        auto const normed = normalize(norm, row(stream, t), static_cast<T>(C.norm_eps));
+
+        Vector<T, C.dim> projected{};
+        if constexpr (C.act == Act::SwiGLU) {
+            auto const gated = ops::silu(ops::linear(w.gate, normed));
+            auto const lifted = ops::linear(w.up, normed);
+            projected = ops::linear(w.down, ops::hadamard(gated, lifted));
+        } else {
+            projected = ops::linear(w.down, ops::gelu(ops::linear(w.up, normed)));
+        }
 
         for (std::size_t i = 0; i < C.dim; ++i) {
             stream.storage[(t * C.dim) + i] += projected.storage[i];
@@ -229,7 +301,7 @@ template <typename T, ModelConfig C, std::size_t Capacity>
     }
 
     auto const last =
-        ops::rmsnorm(row(stream, count - 1), model.final_norm, static_cast<T>(C.norm_eps));
+        normalize(model.final_norm, row(stream, count - 1), static_cast<T>(C.norm_eps));
     return ops::linear(model.lm_head, last);
 }
 
