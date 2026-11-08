@@ -9,10 +9,10 @@
 
 namespace {
 
-using poyea::shrimp::Attention;
-using poyea::shrimp::AttentionGradients;
 using poyea::shrimp::attend;
 using poyea::shrimp::attend_backward;
+using poyea::shrimp::Attention;
+using poyea::shrimp::AttentionGradients;
 using poyea::shrimp::Matrix;
 using poyea::shrimp::ModelConfig;
 using poyea::shrimp::NormGradients;
@@ -26,15 +26,9 @@ template <typename T> [[nodiscard]] constexpr auto near(T a, T b, T tolerance) n
 constexpr double h = 1e-5;
 constexpr double tol = 1e-6;
 
-constexpr ModelConfig cfg{
-    .vocab = 4, .dim = 4, .heads = 1, .layers = 1, .max_seq = 3, .hidden = 4};
-constexpr ModelConfig gqa{.vocab = 4,
-                          .dim = 8,
-                          .heads = 4,
-                          .kv_heads = 2,
-                          .layers = 1,
-                          .max_seq = 3,
-                          .hidden = 4};
+constexpr ModelConfig cfg{.vocab = 4, .dim = 4, .heads = 1, .layers = 1, .max_seq = 3, .hidden = 4};
+constexpr ModelConfig gqa{
+    .vocab = 4, .dim = 8, .heads = 4, .kv_heads = 2, .layers = 1, .max_seq = 3, .hidden = 4};
 
 template <ModelConfig C>
 constexpr auto patterned(std::size_t salt) -> Matrix<double, C.max_seq, C.dim> {
@@ -96,16 +90,14 @@ constexpr auto tiny_model = random_transformer<double, cfg>(7);
 constexpr auto tiny_stream = patterned<cfg>(0);
 constexpr auto tiny_seed = patterned<cfg>(5);
 constexpr auto tiny_back = backward_of<cfg>(tiny_model.blocks[0].attn,
-                                            tiny_model.blocks[0].attn_norm, tiny_stream,
-                                            tiny_seed);
+                                            tiny_model.blocks[0].attn_norm, tiny_stream, tiny_seed);
 
 constexpr auto wq_matches() -> bool {
     return matches_finite_difference(
         tiny_model.blocks[0].attn.wq, tiny_back.dw.wq, [](auto const& p) {
             auto attn = tiny_model.blocks[0].attn;
             attn.wq = p;
-            return forward_loss<cfg>(attn, tiny_model.blocks[0].attn_norm, tiny_stream,
-                                     tiny_seed);
+            return forward_loss<cfg>(attn, tiny_model.blocks[0].attn_norm, tiny_stream, tiny_seed);
         });
 }
 static_assert(wq_matches());
@@ -115,8 +107,7 @@ constexpr auto wk_matches() -> bool {
         tiny_model.blocks[0].attn.wk, tiny_back.dw.wk, [](auto const& p) {
             auto attn = tiny_model.blocks[0].attn;
             attn.wk = p;
-            return forward_loss<cfg>(attn, tiny_model.blocks[0].attn_norm, tiny_stream,
-                                     tiny_seed);
+            return forward_loss<cfg>(attn, tiny_model.blocks[0].attn_norm, tiny_stream, tiny_seed);
         });
 }
 static_assert(wk_matches());
@@ -126,8 +117,7 @@ constexpr auto wv_matches() -> bool {
         tiny_model.blocks[0].attn.wv, tiny_back.dw.wv, [](auto const& p) {
             auto attn = tiny_model.blocks[0].attn;
             attn.wv = p;
-            return forward_loss<cfg>(attn, tiny_model.blocks[0].attn_norm, tiny_stream,
-                                     tiny_seed);
+            return forward_loss<cfg>(attn, tiny_model.blocks[0].attn_norm, tiny_stream, tiny_seed);
         });
 }
 static_assert(wv_matches());
@@ -137,8 +127,7 @@ constexpr auto wo_matches() -> bool {
         tiny_model.blocks[0].attn.wo, tiny_back.dw.wo, [](auto const& p) {
             auto attn = tiny_model.blocks[0].attn;
             attn.wo = p;
-            return forward_loss<cfg>(attn, tiny_model.blocks[0].attn_norm, tiny_stream,
-                                     tiny_seed);
+            return forward_loss<cfg>(attn, tiny_model.blocks[0].attn_norm, tiny_stream, tiny_seed);
         });
 }
 static_assert(wo_matches());
@@ -154,11 +143,10 @@ constexpr auto gain_matches() -> bool {
 static_assert(gain_matches());
 
 constexpr auto dstream_matches() -> bool {
-    return matches_finite_difference(
-        tiny_stream, tiny_back.dstream, [](auto const& p) {
-            return forward_loss<cfg>(tiny_model.blocks[0].attn, tiny_model.blocks[0].attn_norm,
-                                     p, tiny_seed);
-        });
+    return matches_finite_difference(tiny_stream, tiny_back.dstream, [](auto const& p) {
+        return forward_loss<cfg>(tiny_model.blocks[0].attn, tiny_model.blocks[0].attn_norm, p,
+                                 tiny_seed);
+    });
 }
 static_assert(dstream_matches());
 
@@ -180,8 +168,8 @@ static_assert(residual_retains_dout());
 constexpr auto gqa_model = random_transformer<double, gqa>(11);
 constexpr auto gqa_stream = patterned<gqa>(0);
 constexpr auto gqa_seed = patterned<gqa>(5);
-constexpr auto gqa_back = backward_of<gqa>(gqa_model.blocks[0].attn,
-                                           gqa_model.blocks[0].attn_norm, gqa_stream, gqa_seed);
+constexpr auto gqa_back =
+    backward_of<gqa>(gqa_model.blocks[0].attn, gqa_model.blocks[0].attn_norm, gqa_stream, gqa_seed);
 
 // wk and wv feed every query head of a group, so overwrites fail here.
 constexpr auto gqa_wk_matches() -> bool {

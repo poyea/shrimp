@@ -14,12 +14,11 @@
 namespace poyea::shrimp {
 
 template <typename T, ModelConfig C>
-constexpr void feed_forward_backward(FeedForward<T, C> const& w,
-                                     Matrix<T, C.max_seq, C.dim> const& stream_in,
-                                     NormWeights<T, C.dim, C.norm> const& norm,
-                                     Matrix<T, C.max_seq, C.dim>& dstream,
-                                     FeedForwardGradients<T, C>& dw,
-                                     NormGradients<T, C.dim, C.norm>& dnorm, std::size_t count) {
+constexpr void
+feed_forward_backward(FeedForward<T, C> const& w, Matrix<T, C.max_seq, C.dim> const& stream_in,
+                      NormWeights<T, C.dim, C.norm> const& norm,
+                      Matrix<T, C.max_seq, C.dim>& dstream, FeedForwardGradients<T, C>& dw,
+                      NormGradients<T, C.dim, C.norm>& dnorm, std::size_t count) {
     constexpr T eps = static_cast<T>(C.norm_eps);
 
     for (std::size_t t = 0; t < count; ++t) {

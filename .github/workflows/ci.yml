@@ -31,7 +31,6 @@ jobs:
           path: clang-format.patch
 
   build-and-test:
-    needs: format
     strategy:
       fail-fast: false
       matrix:
@@ -99,7 +98,6 @@ jobs:
         run: ctest --test-dir build --output-on-failure
 
   clang-tidy:
-    needs: format
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4

@@ -98,8 +98,7 @@ template <typename T, ModelConfig C>
 constexpr void attend_backward(Attention<T, C> const& w,
                                Matrix<T, C.max_seq, C.dim> const& stream_in,
                                NormWeights<T, C.dim, C.norm> const& norm,
-                               Matrix<T, C.max_seq, C.dim>& dstream,
-                               AttentionGradients<T, C>& dw,
+                               Matrix<T, C.max_seq, C.dim>& dstream, AttentionGradients<T, C>& dw,
                                NormGradients<T, C.dim, C.norm>& dnorm, std::size_t count) {
     constexpr std::size_t head_dim = C.head_dim();
     constexpr std::size_t kv_dim = C.kv_dim();

@@ -11,10 +11,10 @@
 namespace {
 
 using poyea::shrimp::Act;
-using poyea::shrimp::FeedForward;
-using poyea::shrimp::FeedForwardGradients;
 using poyea::shrimp::feed_forward;
 using poyea::shrimp::feed_forward_backward;
+using poyea::shrimp::FeedForward;
+using poyea::shrimp::FeedForwardGradients;
 using poyea::shrimp::fill_uniform;
 using poyea::shrimp::Matrix;
 using poyea::shrimp::ModelConfig;

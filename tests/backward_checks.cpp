@@ -15,8 +15,7 @@ using poyea::shrimp::ModelConfig;
 using poyea::shrimp::TokenSequence;
 using poyea::shrimp::Transformer;
 
-template <typename T>
-[[nodiscard]] constexpr auto near(T a, T b, T tolerance) noexcept -> bool {
+template <typename T> [[nodiscard]] constexpr auto near(T a, T b, T tolerance) noexcept -> bool {
     return poyea::shrimp::cmath::abs(a - b) <= tolerance;
 }
 
@@ -28,7 +27,9 @@ using Input = TokenSequence<cfg.max_seq>;
 
 constexpr Model model = poyea::shrimp::random_transformer<double, cfg>(3);
 
-constexpr auto input() -> Input { return poyea::shrimp::tokens<cfg.max_seq>(1, 2, 3, 1); }
+constexpr auto input() -> Input {
+    return poyea::shrimp::tokens<cfg.max_seq>(1, 2, 3, 1);
+}
 
 constexpr auto objective(Model const& m, Input const& in) -> double {
     return poyea::shrimp::sequence_loss(poyea::shrimp::forward_train(m, in), in);
@@ -170,24 +171,16 @@ static_assert(matches_fd(model, input(), [](auto& m) -> auto& { return m.embeddi
 // Token 1 repeats at positions 0 and 3, so its row receives two scatter contributions.
 static_assert(matches_fd(model, input(), [](auto& m) -> auto& { return m.embedding; }, cfg.dim));
 static_assert(matches_fd(model, input(), [](auto& m) -> auto& { return m.lm_head; }, 0));
-static_assert(
-    matches_fd(model, input(), [](auto& m) -> auto& { return m.final_norm.gain; }, 0));
-static_assert(
-    matches_fd(model, input(), [](auto& m) -> auto& { return m.blocks[0].attn.wq; }, 0));
-static_assert(
-    matches_fd(model, input(), [](auto& m) -> auto& { return m.blocks[0].attn.wk; }, 0));
-static_assert(
-    matches_fd(model, input(), [](auto& m) -> auto& { return m.blocks[0].attn.wv; }, 0));
-static_assert(
-    matches_fd(model, input(), [](auto& m) -> auto& { return m.blocks[0].attn.wo; }, 0));
+static_assert(matches_fd(model, input(), [](auto& m) -> auto& { return m.final_norm.gain; }, 0));
+static_assert(matches_fd(model, input(), [](auto& m) -> auto& { return m.blocks[0].attn.wq; }, 0));
+static_assert(matches_fd(model, input(), [](auto& m) -> auto& { return m.blocks[0].attn.wk; }, 0));
+static_assert(matches_fd(model, input(), [](auto& m) -> auto& { return m.blocks[0].attn.wv; }, 0));
+static_assert(matches_fd(model, input(), [](auto& m) -> auto& { return m.blocks[0].attn.wo; }, 0));
 static_assert(
     matches_fd(model, input(), [](auto& m) -> auto& { return m.blocks[0].attn_norm.gain; }, 0));
-static_assert(
-    matches_fd(model, input(), [](auto& m) -> auto& { return m.blocks[0].ffn.gate; }, 0));
-static_assert(
-    matches_fd(model, input(), [](auto& m) -> auto& { return m.blocks[0].ffn.up; }, 0));
-static_assert(
-    matches_fd(model, input(), [](auto& m) -> auto& { return m.blocks[0].ffn.down; }, 0));
+static_assert(matches_fd(model, input(), [](auto& m) -> auto& { return m.blocks[0].ffn.gate; }, 0));
+static_assert(matches_fd(model, input(), [](auto& m) -> auto& { return m.blocks[0].ffn.up; }, 0));
+static_assert(matches_fd(model, input(), [](auto& m) -> auto& { return m.blocks[0].ffn.down; }, 0));
 static_assert(
     matches_fd(model, input(), [](auto& m) -> auto& { return m.blocks[0].ffn_norm.gain; }, 0));
 

@@ -6,42 +6,37 @@
 #include "shrimp/ops/norm_grad.hpp"
 
 #include <array>
-#include <type_traits>
 #include <cstddef>
+#include <type_traits>
 
 namespace poyea::shrimp {
 
 // Mirrors the weight structs but zero initialised, and a distinct type so a
 // gradient cannot be passed where a model is expected.
 
-template <typename T, std::size_t N, Norm K>
-struct NormGradients {
+template <typename T, std::size_t N, Norm K> struct NormGradients {
     Vector<T, N> gain{};
 };
 
-template <typename T, std::size_t N>
-struct NormGradients<T, N, Norm::Layer> {
+template <typename T, std::size_t N> struct NormGradients<T, N, Norm::Layer> {
     Vector<T, N> gain{};
     Vector<T, N> bias{};
 };
 
-template <typename T, ModelConfig C>
-struct AttentionGradients {
+template <typename T, ModelConfig C> struct AttentionGradients {
     Matrix<T, C.dim, C.dim> wq{};
     Matrix<T, C.kv_dim(), C.dim> wk{};
     Matrix<T, C.kv_dim(), C.dim> wv{};
     Matrix<T, C.dim, C.dim> wo{};
 };
 
-template <typename T, ModelConfig C, Act A>
-struct FeedForwardGradientsFor {
+template <typename T, ModelConfig C, Act A> struct FeedForwardGradientsFor {
     Matrix<T, C.hidden, C.dim> gate{};
     Matrix<T, C.hidden, C.dim> up{};
     Matrix<T, C.dim, C.hidden> down{};
 };
 
-template <typename T, ModelConfig C>
-struct FeedForwardGradientsFor<T, C, Act::GELU> {
+template <typename T, ModelConfig C> struct FeedForwardGradientsFor<T, C, Act::GELU> {
     Matrix<T, C.hidden, C.dim> up{};
     Matrix<T, C.dim, C.hidden> down{};
 };
@@ -49,8 +44,7 @@ struct FeedForwardGradientsFor<T, C, Act::GELU> {
 template <typename T, ModelConfig C>
 using FeedForwardGradients = FeedForwardGradientsFor<T, C, C.act>;
 
-template <typename T, ModelConfig C>
-struct BlockGradients {
+template <typename T, ModelConfig C> struct BlockGradients {
     NormGradients<T, C.dim, C.norm> attn_norm{};
     AttentionGradients<T, C> attn{};
     NormGradients<T, C.dim, C.norm> ffn_norm{};
@@ -130,8 +124,7 @@ constexpr void for_each_tensor(Gradients<T, C>& g, Fn&& fn) {
     fn(g.lm_head);
 }
 
-template <typename T, ModelConfig C>
-constexpr void zero_gradients(Gradients<T, C>& g) {
+template <typename T, ModelConfig C> constexpr void zero_gradients(Gradients<T, C>& g) {
     for_each_tensor(g, [](auto& t) {
         for (std::size_t i = 0; i < std::remove_reference_t<decltype(t)>::size; ++i) {
             t.storage[i] = typename std::remove_reference_t<decltype(t)>::value_type{};
@@ -139,8 +132,7 @@ constexpr void zero_gradients(Gradients<T, C>& g) {
     });
 }
 
-template <typename T, ModelConfig C>
-constexpr void scale_gradients(Gradients<T, C>& g, T factor) {
+template <typename T, ModelConfig C> constexpr void scale_gradients(Gradients<T, C>& g, T factor) {
     for_each_tensor(g, [factor](auto& t) { scale_into(t, factor); });
 }
 
@@ -183,11 +175,10 @@ constexpr void sgd_step(Transformer<T, C>& model, Gradients<T, C> const& g, T ra
 }
 
 template <typename T, ModelConfig C>
-[[nodiscard]] constexpr auto norm_backward_into(NormWeights<T, C.dim, C.norm> const& norm,
-                                                Vector<T, C.dim> const& x,
-                                                Vector<T, C.dim> const& dn,
-                                                NormGradients<T, C.dim, C.norm>& dnorm,
-                                                T epsilon) -> Vector<T, C.dim> {
+[[nodiscard]] constexpr auto
+norm_backward_into(NormWeights<T, C.dim, C.norm> const& norm, Vector<T, C.dim> const& x,
+                   Vector<T, C.dim> const& dn, NormGradients<T, C.dim, C.norm>& dnorm,
+                   T epsilon) -> Vector<T, C.dim> {
     if constexpr (C.norm == Norm::Layer) {
         auto const grad = ops::layernorm_backward(x, norm.gain, epsilon, dn);
         accumulate(dnorm.gain, grad.dgain);

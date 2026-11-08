@@ -24,9 +24,9 @@ template <typename T, ModelConfig C> struct ForwardTape {
 };
 
 template <typename T, ModelConfig C, std::size_t Capacity>
-[[nodiscard]] constexpr auto forward_train(Transformer<T, C> const& model,
-                                           TokenSequence<Capacity> const& input)
-    -> ForwardTape<T, C> {
+[[nodiscard]] constexpr auto
+forward_train(Transformer<T, C> const& model,
+              TokenSequence<Capacity> const& input) -> ForwardTape<T, C> {
     ForwardTape<T, C> tape{};
     std::size_t const count = input.size() < C.max_seq ? input.size() : C.max_seq;
     tape.count = count;

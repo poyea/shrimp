@@ -82,8 +82,7 @@ template <Norm K, typename T, std::size_t N>
 
 namespace detail {
 
-template <typename...>
-inline constexpr bool dependent_false = false;
+template <typename...> inline constexpr bool dependent_false = false;
 
 template <typename T, std::size_t Dim, std::size_t HeadDim>
 [[nodiscard]] constexpr auto head_slice(Vector<T, Dim> const& v,
