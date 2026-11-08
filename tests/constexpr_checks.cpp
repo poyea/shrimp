@@ -196,8 +196,7 @@ constexpr Vector<double, 4> scores{{1.0, 2.0, -5.0, -5.0}};
 constexpr auto prefix = softmax_prefix(scores, 2);
 static_assert(near(prefix.storage[0] + prefix.storage[1], 1.0, 1e-14));
 static_assert(prefix.storage[2] == 0.0); // masked positions stay exactly zero
-static_assert(near(prefix.storage[1], softmax(Vector<double, 2>{{1.0, 2.0}}).storage[1],
-                   1e-14));
+static_assert(near(prefix.storage[1], softmax(Vector<double, 2>{{1.0, 2.0}}).storage[1], 1e-14));
 
 constexpr Vector<double, 4> raw{{3.0, -4.0, 1.0, 2.0}};
 constexpr auto unit_gain = Vector<double, 4>::filled(1.0);
@@ -211,8 +210,7 @@ constexpr auto rms_is_unit() -> bool {
     return near(poyea::shrimp::cmath::sqrt(sum_squares / 4.0), 1.0, 1e-12);
 }
 static_assert(rms_is_unit());
-static_assert(near(rmsnorm(scale(raw, 7.0), unit_gain, 0.0).storage[0], normed.storage[0],
-                   1e-12));
+static_assert(near(rmsnorm(scale(raw, 7.0), unit_gain, 0.0).storage[0], normed.storage[0], 1e-12));
 
 constexpr auto zero_bias = Vector<double, 4>::filled(0.0);
 constexpr auto ln = layernorm(raw, unit_gain, zero_bias, 0.0);

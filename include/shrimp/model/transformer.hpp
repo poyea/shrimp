@@ -26,9 +26,7 @@ struct ModelConfig {
     double rope_theta = 10000.0;
     double norm_eps = 1e-5;
 
-    [[nodiscard]] constexpr auto head_dim() const noexcept -> std::size_t {
-        return dim / heads;
-    }
+    [[nodiscard]] constexpr auto head_dim() const noexcept -> std::size_t { return dim / heads; }
 
     [[nodiscard]] constexpr auto kv_head_count() const noexcept -> std::size_t {
         return kv_heads == 0 ? heads : kv_heads;
@@ -57,27 +55,24 @@ struct ModelConfig {
     }
 
     [[nodiscard]] constexpr auto valid() const noexcept -> bool {
-        return vocab > 0 && dim > 0 && heads > 0 && layers > 0 && max_seq > 0 &&
-               hidden > 0 && (dim % heads) == 0 && (head_dim() % 2) == 0 &&
-               kv_head_count() <= heads && (heads % kv_head_count()) == 0;
+        return vocab > 0 && dim > 0 && heads > 0 && layers > 0 && max_seq > 0 && hidden > 0 &&
+               (dim % heads) == 0 && (head_dim() % 2) == 0 && kv_head_count() <= heads &&
+               (heads % kv_head_count()) == 0;
     }
 };
 
-template <typename T, std::size_t N, Norm K>
-struct NormWeights {
+template <typename T, std::size_t N, Norm K> struct NormWeights {
     Vector<T, N> gain = Vector<T, N>::filled(T{1});
 };
 
-template <typename T, std::size_t N>
-struct NormWeights<T, N, Norm::Layer> {
+template <typename T, std::size_t N> struct NormWeights<T, N, Norm::Layer> {
     Vector<T, N> gain = Vector<T, N>::filled(T{1});
     Vector<T, N> bias{};
 };
 
 template <Norm K, typename T, std::size_t N>
-[[nodiscard]] constexpr auto normalize(NormWeights<T, N, K> const& w,
-                                       Vector<T, N> const& x, T epsilon) noexcept
-    -> Vector<T, N> {
+[[nodiscard]] constexpr auto normalize(NormWeights<T, N, K> const& w, Vector<T, N> const& x,
+                                       T epsilon) noexcept -> Vector<T, N> {
     if constexpr (K == Norm::Layer) {
         return ops::layernorm(x, w.gain, w.bias, epsilon);
     } else {
@@ -88,8 +83,8 @@ template <Norm K, typename T, std::size_t N>
 namespace detail {
 
 template <typename T, std::size_t Dim, std::size_t HeadDim>
-[[nodiscard]] constexpr auto head_slice(Vector<T, Dim> const& v, std::size_t head) noexcept
-    -> Vector<T, HeadDim> {
+[[nodiscard]] constexpr auto head_slice(Vector<T, Dim> const& v,
+                                        std::size_t head) noexcept -> Vector<T, HeadDim> {
     Vector<T, HeadDim> out{};
     std::size_t const base = head * HeadDim;
     for (std::size_t i = 0; i < HeadDim; ++i) {
@@ -109,32 +104,27 @@ constexpr void head_splice(Vector<T, Dim>& v, std::size_t head,
 
 } // namespace detail
 
-template <typename T, ModelConfig C>
-struct Attention {
+template <typename T, ModelConfig C> struct Attention {
     Matrix<T, C.dim, C.dim> wq{};
     Matrix<T, C.kv_dim(), C.dim> wk{};
     Matrix<T, C.kv_dim(), C.dim> wv{};
     Matrix<T, C.dim, C.dim> wo{};
 };
 
-template <typename T, ModelConfig C, Act A>
-struct FeedForwardWeights {
+template <typename T, ModelConfig C, Act A> struct FeedForwardWeights {
     Matrix<T, C.hidden, C.dim> gate{};
     Matrix<T, C.hidden, C.dim> up{};
     Matrix<T, C.dim, C.hidden> down{};
 };
 
-template <typename T, ModelConfig C>
-struct FeedForwardWeights<T, C, Act::GELU> {
+template <typename T, ModelConfig C> struct FeedForwardWeights<T, C, Act::GELU> {
     Matrix<T, C.hidden, C.dim> up{};
     Matrix<T, C.dim, C.hidden> down{};
 };
 
-template <typename T, ModelConfig C>
-using FeedForward = FeedForwardWeights<T, C, C.act>;
+template <typename T, ModelConfig C> using FeedForward = FeedForwardWeights<T, C, C.act>;
 
-template <typename T, ModelConfig C>
-struct Block {
+template <typename T, ModelConfig C> struct Block {
     NormWeights<T, C.dim, C.norm> attn_norm{};
     Attention<T, C> attn{};
     NormWeights<T, C.dim, C.norm> ffn_norm{};
@@ -154,8 +144,7 @@ struct Transformer {
 };
 
 // Not a std::vector: constant evaluation allows allocation only transiently.
-template <std::size_t Capacity>
-struct TokenSequence {
+template <std::size_t Capacity> struct TokenSequence {
     std::array<std::size_t, Capacity> tokens{};
     std::size_t length = 0;
 
@@ -174,8 +163,7 @@ struct TokenSequence {
 
     [[nodiscard]] constexpr auto full() const noexcept -> bool { return length >= Capacity; }
 
-    [[nodiscard]] constexpr auto operator==(TokenSequence const& other) const noexcept
-        -> bool {
+    [[nodiscard]] constexpr auto operator==(TokenSequence const& other) const noexcept -> bool {
         if (length != other.length) {
             return false;
         }
@@ -237,16 +225,14 @@ constexpr void attend(Attention<T, C> const& w, Matrix<T, C.max_seq, C.dim>& str
 
             Vector<T, C.max_seq> scores{};
             for (std::size_t j = 0; j <= t; ++j) {
-                auto const k_head =
-                    detail::head_slice<T, kv_dim, head_dim>(row(keys, j), kv);
+                auto const k_head = detail::head_slice<T, kv_dim, head_dim>(row(keys, j), kv);
                 scores.storage[j] = ops::dot(q_head, k_head) * scale;
             }
             auto const weights = ops::softmax_prefix(scores, t + 1);
 
             Vector<T, head_dim> blended{};
             for (std::size_t j = 0; j <= t; ++j) {
-                auto const v_head =
-                    detail::head_slice<T, kv_dim, head_dim>(row(values, j), kv);
+                auto const v_head = detail::head_slice<T, kv_dim, head_dim>(row(values, j), kv);
                 for (std::size_t i = 0; i < head_dim; ++i) {
                     blended.storage[i] += weights.storage[j] * v_head.storage[i];
                 }
@@ -262,8 +248,7 @@ constexpr void attend(Attention<T, C> const& w, Matrix<T, C.max_seq, C.dim>& str
 }
 
 template <typename T, ModelConfig C>
-constexpr void feed_forward(FeedForward<T, C> const& w,
-                            Matrix<T, C.max_seq, C.dim>& stream,
+constexpr void feed_forward(FeedForward<T, C> const& w, Matrix<T, C.max_seq, C.dim>& stream,
                             NormWeights<T, C.dim, C.norm> const& norm, std::size_t count) {
     for (std::size_t t = 0; t < count; ++t) {
         auto const normed = normalize(norm, row(stream, t), static_cast<T>(C.norm_eps));
@@ -285,8 +270,7 @@ constexpr void feed_forward(FeedForward<T, C> const& w,
 
 template <typename T, ModelConfig C, std::size_t Capacity>
 [[nodiscard]] constexpr auto forward(Transformer<T, C> const& model,
-                                     TokenSequence<Capacity> const& input)
-    -> Vector<T, C.vocab> {
+                                     TokenSequence<Capacity> const& input) -> Vector<T, C.vocab> {
     std::size_t const count = input.size() < C.max_seq ? input.size() : C.max_seq;
 
     Matrix<T, C.max_seq, C.dim> stream{};
@@ -306,9 +290,9 @@ template <typename T, ModelConfig C, std::size_t Capacity>
 }
 
 template <std::size_t MaxNew, typename T, ModelConfig C, std::size_t Capacity>
-[[nodiscard]] constexpr auto generate(Transformer<T, C> const& model,
-                                      TokenSequence<Capacity> const& prompt)
-    -> TokenSequence<Capacity> {
+[[nodiscard]] constexpr auto
+generate(Transformer<T, C> const& model,
+         TokenSequence<Capacity> const& prompt) -> TokenSequence<Capacity> {
     TokenSequence<Capacity> sequence = prompt;
     for (std::size_t step = 0; step < MaxNew; ++step) {
         if (sequence.full() || sequence.size() >= C.max_seq) {

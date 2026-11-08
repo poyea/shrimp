@@ -92,21 +92,18 @@ template <typename T, std::size_t N>
     return out;
 }
 
-template <typename T>
-[[nodiscard]] constexpr auto gelu_scalar(T x) noexcept -> T {
+template <typename T> [[nodiscard]] constexpr auto gelu_scalar(T x) noexcept -> T {
     constexpr T coeff = T{0.7978845608028654}; // sqrt(2/pi)
     constexpr T cubic = T{0.044715};
     return T{0.5} * x * (T{1} + cmath::tanh(coeff * (x + (cubic * x * x * x))));
 }
 
-template <typename T>
-[[nodiscard]] constexpr auto silu_scalar(T x) noexcept -> T {
+template <typename T> [[nodiscard]] constexpr auto silu_scalar(T x) noexcept -> T {
     return x * cmath::sigmoid(x);
 }
 
 template <typename T, std::size_t... Dims>
-[[nodiscard]] constexpr auto gelu(Tensor<T, Dims...> const& x) noexcept
-    -> Tensor<T, Dims...> {
+[[nodiscard]] constexpr auto gelu(Tensor<T, Dims...> const& x) noexcept -> Tensor<T, Dims...> {
     Tensor<T, Dims...> out{};
     for (std::size_t i = 0; i < Tensor<T, Dims...>::size; ++i) {
         out.storage[i] = gelu_scalar(x.storage[i]);
@@ -115,8 +112,7 @@ template <typename T, std::size_t... Dims>
 }
 
 template <typename T, std::size_t... Dims>
-[[nodiscard]] constexpr auto silu(Tensor<T, Dims...> const& x) noexcept
-    -> Tensor<T, Dims...> {
+[[nodiscard]] constexpr auto silu(Tensor<T, Dims...> const& x) noexcept -> Tensor<T, Dims...> {
     Tensor<T, Dims...> out{};
     for (std::size_t i = 0; i < Tensor<T, Dims...>::size; ++i) {
         out.storage[i] = silu_scalar(x.storage[i]);

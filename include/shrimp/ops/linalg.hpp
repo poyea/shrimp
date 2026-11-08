@@ -49,8 +49,7 @@ template <typename T, std::size_t Out, std::size_t In>
 }
 
 template <typename T, std::size_t Out, std::size_t In>
-[[nodiscard]] constexpr auto linear(Matrix<T, Out, In> const& weight,
-                                    Vector<T, Out> const& bias,
+[[nodiscard]] constexpr auto linear(Matrix<T, Out, In> const& weight, Vector<T, Out> const& bias,
                                     Vector<T, In> const& x) noexcept -> Vector<T, Out> {
     Vector<T, Out> out = linear(weight, x);
     for (std::size_t o = 0; o < Out; ++o) {
@@ -60,8 +59,8 @@ template <typename T, std::size_t Out, std::size_t In>
 }
 
 template <typename T, std::size_t Rows, std::size_t Cols>
-[[nodiscard]] constexpr auto transpose(Matrix<T, Rows, Cols> const& m) noexcept
-    -> Matrix<T, Cols, Rows> {
+[[nodiscard]] constexpr auto
+transpose(Matrix<T, Rows, Cols> const& m) noexcept -> Matrix<T, Cols, Rows> {
     Matrix<T, Cols, Rows> out{};
     for (std::size_t i = 0; i < Rows; ++i) {
         for (std::size_t j = 0; j < Cols; ++j) {
@@ -73,8 +72,7 @@ template <typename T, std::size_t Rows, std::size_t Cols>
 
 template <typename T, std::size_t... Dims>
 [[nodiscard]] constexpr auto add(Tensor<T, Dims...> const& a,
-                                 Tensor<T, Dims...> const& b) noexcept
-    -> Tensor<T, Dims...> {
+                                 Tensor<T, Dims...> const& b) noexcept -> Tensor<T, Dims...> {
     Tensor<T, Dims...> out{};
     for (std::size_t i = 0; i < Tensor<T, Dims...>::size; ++i) {
         out.storage[i] = a.storage[i] + b.storage[i];
@@ -84,8 +82,7 @@ template <typename T, std::size_t... Dims>
 
 template <typename T, std::size_t... Dims>
 [[nodiscard]] constexpr auto hadamard(Tensor<T, Dims...> const& a,
-                                      Tensor<T, Dims...> const& b) noexcept
-    -> Tensor<T, Dims...> {
+                                      Tensor<T, Dims...> const& b) noexcept -> Tensor<T, Dims...> {
     Tensor<T, Dims...> out{};
     for (std::size_t i = 0; i < Tensor<T, Dims...>::size; ++i) {
         out.storage[i] = a.storage[i] * b.storage[i];
@@ -94,8 +91,8 @@ template <typename T, std::size_t... Dims>
 }
 
 template <typename T, std::size_t... Dims>
-[[nodiscard]] constexpr auto scale(Tensor<T, Dims...> const& a, T factor) noexcept
-    -> Tensor<T, Dims...> {
+[[nodiscard]] constexpr auto scale(Tensor<T, Dims...> const& a,
+                                   T factor) noexcept -> Tensor<T, Dims...> {
     Tensor<T, Dims...> out{};
     for (std::size_t i = 0; i < Tensor<T, Dims...>::size; ++i) {
         out.storage[i] = a.storage[i] * factor;

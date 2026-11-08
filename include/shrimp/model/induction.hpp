@@ -52,8 +52,7 @@ template <typename T>
     return (c.head_dim() / 2) - ((c.vocab + 1) / 2);
 }
 
-[[nodiscard]] constexpr auto match_slot(std::size_t v, ModelConfig c) noexcept
-    -> std::size_t {
+[[nodiscard]] constexpr auto match_slot(std::size_t v, ModelConfig c) noexcept -> std::size_t {
     std::size_t const half = c.head_dim() / 2;
     std::size_t const pairs = (c.vocab + 1) / 2;
     return v < pairs ? high_begin(c) + v : half + high_begin(c) + (v - pairs);
@@ -125,11 +124,10 @@ template <typename T, ModelConfig C = config>
     }
 
     // L1.
-    T const scale1 =
-        T{1} / cmath::sqrt(((static_cast<T>(detail::embed_gain * detail::embed_gain) +
-                             static_cast<T>(detail::prev_gain * detail::prev_gain)) /
-                            static_cast<T>(dim)) +
-                           static_cast<T>(C.norm_eps));
+    T const scale1 = T{1} / cmath::sqrt(((static_cast<T>(detail::embed_gain * detail::embed_gain) +
+                                          static_cast<T>(detail::prev_gain * detail::prev_gain)) /
+                                         static_cast<T>(dim)) +
+                                        static_cast<T>(C.norm_eps));
     T const tok_mag = static_cast<T>(detail::embed_gain) * scale1;
     T const prev_mag = static_cast<T>(detail::prev_gain) * scale1;
 

@@ -40,8 +40,7 @@ template <std::floating_point T>
         u1 = uniform<T>(rng);
     }
     T const u2 = uniform<T>(rng);
-    return cmath::sqrt(T{-2} * cmath::log(u1)) *
-           cmath::cos(T{2} * std::numbers::pi_v<T> * u2);
+    return cmath::sqrt(T{-2} * cmath::log(u1)) * cmath::cos(T{2} * std::numbers::pi_v<T> * u2);
 }
 
 template <typename T, std::size_t... Dims>
@@ -52,8 +51,7 @@ constexpr void fill_normal(Tensor<T, Dims...>& t, SplitMix64& rng, T stddev) noe
 }
 
 template <typename T, std::size_t... Dims>
-constexpr void fill_uniform(Tensor<T, Dims...>& t, SplitMix64& rng, T low,
-                            T high) noexcept {
+constexpr void fill_uniform(Tensor<T, Dims...>& t, SplitMix64& rng, T low, T high) noexcept {
     for (std::size_t i = 0; i < Tensor<T, Dims...>::size; ++i) {
         t.storage[i] = uniform<T>(rng, low, high);
     }

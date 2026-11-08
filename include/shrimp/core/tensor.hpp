@@ -35,8 +35,7 @@ struct Tensor {
         return storage[offset_of(indices...)];
     }
 
-    [[nodiscard]] constexpr auto operator[](decltype(Dims)... indices) const noexcept
-        -> T const& {
+    [[nodiscard]] constexpr auto operator[](decltype(Dims)... indices) const noexcept -> T const& {
         return storage[offset_of(indices...)];
     }
 
@@ -68,8 +67,8 @@ struct Tensor {
     }
 
   private:
-    [[nodiscard]] static constexpr auto offset_of(decltype(Dims)... indices) noexcept
-        -> std::size_t {
+    [[nodiscard]] static constexpr auto
+    offset_of(decltype(Dims)... indices) noexcept -> std::size_t {
         std::array<std::size_t, rank> const subscript{indices...};
         std::size_t offset = 0;
         for (std::size_t i = 0; i < rank; ++i) {
@@ -79,11 +78,9 @@ struct Tensor {
     }
 };
 
-template <typename T, std::size_t N>
-using Vector = Tensor<T, N>;
+template <typename T, std::size_t N> using Vector = Tensor<T, N>;
 
-template <typename T, std::size_t Rows, std::size_t Cols>
-using Matrix = Tensor<T, Rows, Cols>;
+template <typename T, std::size_t Rows, std::size_t Cols> using Matrix = Tensor<T, Rows, Cols>;
 
 template <typename T>
 concept TensorLike = requires {
@@ -93,8 +90,8 @@ concept TensorLike = requires {
 };
 
 template <typename T, std::size_t Rows, std::size_t Cols>
-[[nodiscard]] constexpr auto row(Matrix<T, Rows, Cols> const& m, std::size_t index) noexcept
-    -> Vector<T, Cols> {
+[[nodiscard]] constexpr auto row(Matrix<T, Rows, Cols> const& m,
+                                 std::size_t index) noexcept -> Vector<T, Cols> {
     Vector<T, Cols> result{};
     for (std::size_t j = 0; j < Cols; ++j) {
         result.storage[j] = m.storage[(index * Cols) + j];

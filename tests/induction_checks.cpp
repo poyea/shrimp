@@ -21,8 +21,8 @@ constexpr auto model = poyea::shrimp::induction::build<double>();
 // --------------------------------------------------------------- next token
 namespace prediction {
 
-using poyea::shrimp::ops::argmax;
 using poyea::shrimp::forward;
+using poyea::shrimp::ops::argmax;
 
 // period 3: 1 2 3 1 -> 2
 static_assert(argmax(forward(model, tokens<cap>(0, 1, 2, 3, 1))) == 2);
@@ -58,8 +58,7 @@ using poyea::shrimp::generate;
 static_assert(generate<3>(model, tokens<cap>(0, 1, 2, 3, 1)) ==
               tokens<cap>(0, 1, 2, 3, 1, 2, 3, 1));
 
-static_assert(generate<4>(model, tokens<cap>(0, 1, 2, 1)) ==
-              tokens<cap>(0, 1, 2, 1, 2, 1, 2, 1));
+static_assert(generate<4>(model, tokens<cap>(0, 1, 2, 1)) == tokens<cap>(0, 1, 2, 1, 2, 1, 2, 1));
 
 static_assert(generate<3>(model, tokens<cap>(0, 4, 7, 5, 4)) ==
               tokens<cap>(0, 4, 7, 5, 4, 7, 5, 4));
@@ -105,20 +104,24 @@ constexpr auto logits_are_well_formed() -> bool {
 static_assert(logits_are_well_formed());
 } // namespace random_init
 
-
 namespace axes {
 
 using poyea::shrimp::Act;
 using poyea::shrimp::ModelConfig;
 using poyea::shrimp::Norm;
 
-constexpr ModelConfig gqa{.vocab = 8, .dim = 16, .heads = 4, .kv_heads = 2,
-                          .layers = 1, .max_seq = 8, .hidden = 16};
-constexpr ModelConfig mqa{.vocab = 8, .dim = 16, .heads = 4, .kv_heads = 1,
-                          .layers = 1, .max_seq = 8, .hidden = 16};
-constexpr ModelConfig gpt{.vocab = 8, .dim = 8, .heads = 1, .layers = 1,
-                          .max_seq = 4, .hidden = 8,
-                          .norm = Norm::Layer, .act = Act::GELU};
+constexpr ModelConfig gqa{
+    .vocab = 8, .dim = 16, .heads = 4, .kv_heads = 2, .layers = 1, .max_seq = 8, .hidden = 16};
+constexpr ModelConfig mqa{
+    .vocab = 8, .dim = 16, .heads = 4, .kv_heads = 1, .layers = 1, .max_seq = 8, .hidden = 16};
+constexpr ModelConfig gpt{.vocab = 8,
+                          .dim = 8,
+                          .heads = 1,
+                          .layers = 1,
+                          .max_seq = 4,
+                          .hidden = 8,
+                          .norm = Norm::Layer,
+                          .act = Act::GELU};
 
 static_assert(cfg.kv_head_count() == 1 && cfg.group_size() == 1);
 static_assert(gqa.valid() && gqa.kv_dim() == 8 && gqa.group_size() == 2);
@@ -129,8 +132,8 @@ static_assert(gqa.parameters() == 1840);
 static_assert(mqa.parameters() == 1712);
 static_assert(gpt.parameters() == 560);
 
-constexpr ModelConfig bad_kv{.vocab = 8, .dim = 16, .heads = 4, .kv_heads = 3,
-                             .layers = 1, .max_seq = 8, .hidden = 16};
+constexpr ModelConfig bad_kv{
+    .vocab = 8, .dim = 16, .heads = 4, .kv_heads = 3, .layers = 1, .max_seq = 8, .hidden = 16};
 static_assert(!bad_kv.valid());
 
 static_assert(!poyea::shrimp::induction::construction_is_sound<double>(gqa));
@@ -141,8 +144,7 @@ constexpr auto gpt_model = poyea::shrimp::random_transformer<double, gpt>(7);
 
 template <poyea::shrimp::ModelConfig C>
 constexpr auto logits_well_formed(poyea::shrimp::Transformer<double, C> const& m,
-                                  poyea::shrimp::TokenSequence<C.max_seq> const& in)
-    -> bool {
+                                  poyea::shrimp::TokenSequence<C.max_seq> const& in) -> bool {
     auto const logits = poyea::shrimp::forward(m, in);
     bool varies = false;
     for (std::size_t v = 0; v < C.vocab; ++v) {
