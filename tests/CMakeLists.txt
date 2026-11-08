@@ -36,7 +36,8 @@ set(shrimp_constexpr_suites
     rope_table_checks
     ffn_backward_checks
     attn_backward_checks
-    backward_consistency_checks)
+    backward_consistency_checks
+    backward_checks)
 
 foreach(suite IN LISTS shrimp_constexpr_suites)
     add_executable(${PROJECT_NAME}_${suite} ${suite}.cpp)

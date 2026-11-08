@@ -6,6 +6,7 @@
 #include "shrimp/ops/norm_grad.hpp"
 
 #include <array>
+#include <type_traits>
 #include <cstddef>
 
 namespace poyea::shrimp {
@@ -127,6 +128,15 @@ constexpr void for_each_tensor(Gradients<T, C>& g, Fn&& fn) {
         fn(g.final_norm.bias);
     }
     fn(g.lm_head);
+}
+
+template <typename T, ModelConfig C>
+constexpr void zero_gradients(Gradients<T, C>& g) {
+    for_each_tensor(g, [](auto& t) {
+        for (std::size_t i = 0; i < std::remove_reference_t<decltype(t)>::size; ++i) {
+            t.storage[i] = typename std::remove_reference_t<decltype(t)>::value_type{};
+        }
+    });
 }
 
 template <typename T, ModelConfig C>
