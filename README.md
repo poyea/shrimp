@@ -3,9 +3,9 @@
 A transformer that runs entirely at compile time.
 
 ```cpp
-constexpr auto model = shrimp::induction::build<double>();
+constexpr auto model = poyea::shrimp::induction::build<double>();
 
-static_assert(shrimp::generate<3>(model, tokens<12>(0, 1, 2, 3, 1)) ==
+static_assert(poyea::shrimp::generate<3>(model, tokens<12>(0, 1, 2, 3, 1)) ==
               tokens<12>(0, 1, 2, 3, 1, 2, 3, 1));
 ```
 
@@ -15,15 +15,17 @@ The binary does nothing.
 ## Model
 
 ```cpp
-constexpr shrimp::ModelConfig cfg{
-    .vocab = 8, .dim = 16, .heads = 1,
+constexpr poyea::shrimp::ModelConfig cfg{
+    .vocab = 8, .dim = 16, .heads = 1, .kv_heads = 1,
     .layers = 2, .max_seq = 12, .hidden = 1,
+    .norm = Norm::RMS, .act = Act::SwiGLU,
     .rope_theta = 1e6, .norm_eps = 1e-5};
 
-shrimp::Transformer<double, cfg> model{};
+poyea::shrimp::Transformer<double, cfg> model{};
 ```
 
-Pre-norm RMSNorm, split-half RoPE, SwiGLU, greedy decode.
+Pre-norm, split-half RoPE, greedy decode.
+`norm` takes RMS or Layer, `act` takes SwiGLU or GELU, `kv_heads` gives GQA.
 Shapes are template parameters, so a mismatch fails to compile.
 Weights come from `induction::build()` (closed form) or `random_transformer(seed)`.
 
