@@ -26,7 +26,7 @@ include(GoogleTest)
 gtest_discover_tests(${PROJECT_NAME}_tests)
 
 # static_assert suites: the build is the test run.
-set(shrimp_constexpr_suites constexpr_checks induction_checks)
+set(shrimp_constexpr_suites constexpr_checks induction_checks training_checks)
 
 foreach(suite IN LISTS shrimp_constexpr_suites)
     add_executable(${PROJECT_NAME}_${suite} ${suite}.cpp)
