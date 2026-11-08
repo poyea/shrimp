@@ -32,7 +32,8 @@ set(shrimp_constexpr_suites
     training_checks
     linalg_grad_checks
     norm_grad_checks
-    act_grad_checks)
+    act_grad_checks
+    rope_table_checks)
 
 foreach(suite IN LISTS shrimp_constexpr_suites)
     add_executable(${PROJECT_NAME}_${suite} ${suite}.cpp)

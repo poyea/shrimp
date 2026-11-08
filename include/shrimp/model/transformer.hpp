@@ -190,6 +190,8 @@ constexpr void attend(Attention<T, C> const& w, Matrix<T, C.max_seq, C.dim>& str
     constexpr std::size_t kv_dim = C.kv_dim();
     constexpr std::size_t group = C.group_size();
     constexpr T scale = T{1} / cmath::sqrt(static_cast<T>(head_dim));
+    auto const& rotation = ops::rope_table<T, head_dim, C.max_seq,
+                                          static_cast<T>(C.rope_theta)>;
 
     Matrix<T, C.max_seq, C.dim> queries{};
     Matrix<T, C.max_seq, kv_dim> keys{};
@@ -203,11 +205,11 @@ constexpr void attend(Attention<T, C> const& w, Matrix<T, C.max_seq, C.dim>& str
 
         for (std::size_t h = 0; h < C.heads; ++h) {
             auto const q_head = detail::head_slice<T, C.dim, head_dim>(q, h);
-            detail::head_splice(q, h, ops::rope(q_head, t, static_cast<T>(C.rope_theta)));
+            detail::head_splice(q, h, ops::rope(q_head, rotation, t));
         }
         for (std::size_t h = 0; h < C.kv_head_count(); ++h) {
             auto const k_head = detail::head_slice<T, kv_dim, head_dim>(k, h);
-            detail::head_splice(k, h, ops::rope(k_head, t, static_cast<T>(C.rope_theta)));
+            detail::head_splice(k, h, ops::rope(k_head, rotation, t));
         }
 
         set_row(queries, t, q);

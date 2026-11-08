@@ -110,4 +110,24 @@ template <typename T, std::size_t HeadDim>
     return dx;
 }
 
+template <typename T, std::size_t HeadDim, std::size_t MaxSeq>
+    requires(HeadDim % 2 == 0)
+[[nodiscard]] constexpr auto rope_backward(Vector<T, HeadDim> const& dy,
+                                           RopeTable<T, HeadDim, MaxSeq> const& table,
+                                           std::size_t position) noexcept
+    -> Vector<T, HeadDim> {
+    constexpr std::size_t half = HeadDim / 2;
+    Vector<T, HeadDim> dx{};
+    std::size_t const base = position * half;
+    for (std::size_t i = 0; i < half; ++i) {
+        T const cos_a = table.cosines.storage[base + i];
+        T const sin_a = table.sines.storage[base + i];
+        T const lo = dy.storage[i];
+        T const hi = dy.storage[i + half];
+        dx.storage[i] = (lo * cos_a) + (hi * sin_a);
+        dx.storage[i + half] = (hi * cos_a) - (lo * sin_a);
+    }
+    return dx;
+}
+
 } // namespace poyea::shrimp::ops

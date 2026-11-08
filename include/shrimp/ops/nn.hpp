@@ -143,4 +143,54 @@ template <typename T, std::size_t HeadDim>
     return out;
 }
 
+template <typename T, std::size_t HeadDim, std::size_t MaxSeq>
+    requires(HeadDim % 2 == 0)
+struct RopeTable {
+    Matrix<T, MaxSeq, HeadDim / 2> cosines{};
+    Matrix<T, MaxSeq, HeadDim / 2> sines{};
+};
+
+template <typename T, std::size_t HeadDim, std::size_t MaxSeq>
+    requires(HeadDim % 2 == 0)
+[[nodiscard]] constexpr auto make_rope_table(T theta_base) noexcept
+    -> RopeTable<T, HeadDim, MaxSeq> {
+    constexpr std::size_t half = HeadDim / 2;
+    RopeTable<T, HeadDim, MaxSeq> table{};
+    for (std::size_t i = 0; i < half; ++i) {
+        T const exponent = static_cast<T>(2 * i) / static_cast<T>(HeadDim);
+        T const inv_freq = T{1} / cmath::pow(theta_base, exponent);
+        for (std::size_t p = 0; p < MaxSeq; ++p) {
+            T const angle = static_cast<T>(p) * inv_freq;
+            table.cosines.storage[(p * half) + i] = cmath::cos(angle);
+            table.sines.storage[(p * half) + i] = cmath::sin(angle);
+        }
+    }
+    return table;
+}
+
+// One object per instantiation, so the transcendentals leave the hot loop.
+template <typename T, std::size_t HeadDim, std::size_t MaxSeq, T Theta>
+    requires(HeadDim % 2 == 0)
+inline constexpr RopeTable<T, HeadDim, MaxSeq> rope_table =
+    make_rope_table<T, HeadDim, MaxSeq>(Theta);
+
+template <typename T, std::size_t HeadDim, std::size_t MaxSeq>
+    requires(HeadDim % 2 == 0)
+[[nodiscard]] constexpr auto rope(Vector<T, HeadDim> const& x,
+                                  RopeTable<T, HeadDim, MaxSeq> const& table,
+                                  std::size_t position) noexcept -> Vector<T, HeadDim> {
+    constexpr std::size_t half = HeadDim / 2;
+    Vector<T, HeadDim> out{};
+    std::size_t const base = position * half;
+    for (std::size_t i = 0; i < half; ++i) {
+        T const cos_a = table.cosines.storage[base + i];
+        T const sin_a = table.sines.storage[base + i];
+        T const lo = x.storage[i];
+        T const hi = x.storage[i + half];
+        out.storage[i] = (lo * cos_a) - (hi * sin_a);
+        out.storage[i + half] = (lo * sin_a) + (hi * cos_a);
+    }
+    return out;
+}
+
 } // namespace poyea::shrimp::ops
