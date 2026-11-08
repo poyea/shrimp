@@ -10,8 +10,19 @@ Checks: >-
   cppcoreguidelines-*,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-owning-memory,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -bugprone-easily-swappable-parameters,
   -readability-magic-numbers,
   -readability-identifier-length
+
+# bounds-constant-array-index: gsl::at is not constexpr-usable; bounds live in
+# the tensor extents. easily-swappable-parameters: signature orders follow the
+# reference implementations.
+
+CheckOptions:
+  - key: readability-function-cognitive-complexity.Threshold
+    value: '60'
+
 WarningsAsErrors: '*'
 HeaderFilterRegex: '^(include|src|tests|benchmarks)/'
 FormatStyle: file

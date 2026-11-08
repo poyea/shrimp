@@ -12,4 +12,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build image
-        run: docker build -t cpp-package-boilerplate:latest .
+        run: docker build -t shrimp:latest .

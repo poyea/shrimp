@@ -3,7 +3,7 @@
 #include <string>
 #include <string_view>
 
-namespace cpp_package_boilerplate {
+namespace poyea::shrimp {
 
 [[nodiscard]] constexpr auto add(int left, int right) noexcept -> int {
     return left + right;
@@ -11,14 +11,14 @@ namespace cpp_package_boilerplate {
 
 [[nodiscard]] auto greet(std::string_view name) -> std::string;
 
-} // namespace cpp_package_boilerplate
+} // namespace poyea::shrimp
 
-#ifdef CPP_PACKAGE_BOILERPLATE_HEADER_ONLY
-namespace cpp_package_boilerplate {
+#ifdef SHRIMP_HEADER_ONLY
+namespace poyea::shrimp {
 
 inline auto greet(std::string_view name) -> std::string {
-    return "hello, " + std::string(name) + " from cpp-package-boilerplate";
+    return "hello, " + std::string(name) + " from shrimp";
 }
 
-} // namespace cpp_package_boilerplate
+} // namespace poyea::shrimp
 #endif

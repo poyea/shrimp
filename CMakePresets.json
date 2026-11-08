@@ -12,8 +12,8 @@
             "binaryDir": "${sourceDir}/build/debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CPP_PACKAGE_BOILERPLATE_BUILD_BENCHMARKS": "OFF",
-                "CPP_PACKAGE_BOILERPLATE_BUILD_DOCS": "OFF"
+                "SHRIMP_BUILD_BENCHMARKS": "OFF",
+                "SHRIMP_BUILD_DOCS": "OFF"
             }
         },
         {
@@ -50,7 +50,7 @@
             "binaryDir": "${sourceDir}/build/ci",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-                "CPP_PACKAGE_BOILERPLATE_ENABLE_SANITIZERS": "OFF"
+                "SHRIMP_ENABLE_SANITIZERS": "OFF"
             }
         },
         {

@@ -14,7 +14,21 @@ jobs:
       - name: Install clang-format
         run: sudo apt-get update && sudo apt-get install -y clang-format
       - name: Check formatting
+        id: check
         run: bash scripts/format.sh --check
+      # --Werror gives no patch; emit one on failure.
+      - name: Produce formatting patch
+        if: failure() && steps.check.outcome == 'failure'
+        run: |
+          bash scripts/format.sh
+          git diff --patch > clang-format.patch
+          cat clang-format.patch
+      - name: Upload formatting patch
+        if: failure() && steps.check.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: clang-format-patch
+          path: clang-format.patch
 
   build-and-test:
     needs: format
@@ -34,10 +48,7 @@ jobs:
             compiler: apple-clang
             cc: clang
             cxx: clang++
-          - os: windows-2022
-            compiler: msvc
-            cc: cl
-            cxx: cl
+          # MSVC not covered: pinned to C++23, weak at heavy constexpr.
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -45,12 +56,6 @@ jobs:
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgJsonGlob: vcpkg.json
-      - name: Set up MSVC developer shell
-        if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@v1
-      - name: Install Ninja on Windows
-        if: runner.os == 'Windows'
-        run: choco install ninja --no-progress -y
       - name: Install Ninja on macOS
         if: runner.os == 'macOS'
         run: brew install ninja
@@ -83,19 +88,11 @@ jobs:
             chmod +x llvm.sh
             sudo ./llvm.sh 22
           fi
-      - name: Configure (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: Configure
         env:
           CC: ${{ matrix.cc }}
           CXX: ${{ matrix.cxx }}
-        run: cmake -S . -B build -G Ninja "-DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DCPP_PACKAGE_BOILERPLATE_BUILD_BENCHMARKS=OFF -DCPP_PACKAGE_BOILERPLATE_BUILD_DOCS=OFF
-      - name: Configure (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        env:
-          CC: ${{ matrix.cc }}
-          CXX: ${{ matrix.cxx }}
-        run: cmake -S . -B build -G "Ninja" "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" -DCPP_PACKAGE_BOILERPLATE_BUILD_BENCHMARKS=OFF -DCPP_PACKAGE_BOILERPLATE_BUILD_DOCS=OFF
+        run: cmake -S . -B build -G Ninja "-DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DSHRIMP_BUILD_BENCHMARKS=OFF -DSHRIMP_BUILD_DOCS=OFF
       - name: Build
         run: cmake --build build --parallel
       - name: Test
@@ -124,6 +121,6 @@ jobs:
         env:
           CC: clang-22
           CXX: clang++-22
-        run: cmake -S . -B build/tidy -G Ninja -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake -DCPP_PACKAGE_BOILERPLATE_BUILD_BENCHMARKS=OFF -DCPP_PACKAGE_BOILERPLATE_BUILD_DOCS=OFF -DCPP_PACKAGE_BOILERPLATE_ENABLE_CLANG_TIDY=ON
+        run: cmake -S . -B build/tidy -G Ninja -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake -DSHRIMP_BUILD_BENCHMARKS=OFF -DSHRIMP_BUILD_DOCS=OFF -DSHRIMP_ENABLE_CLANG_TIDY=ON
       - name: Build with clang-tidy
         run: cmake --build build/tidy --parallel

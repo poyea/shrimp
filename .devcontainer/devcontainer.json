@@ -1,5 +1,5 @@
 {
-    "name": "cpp-package-boilerplate",
+    "name": "shrimp",
     "build": {
         "dockerfile": "Dockerfile",
         "context": ".."

@@ -30,9 +30,9 @@ COPY . .
 
 RUN cmake -S . -B build -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCPP_PACKAGE_BOILERPLATE_BUILD_TESTS=OFF \
-        -DCPP_PACKAGE_BOILERPLATE_BUILD_BENCHMARKS=OFF \
-        -DCPP_PACKAGE_BOILERPLATE_BUILD_DOCS=OFF \
+        -DSHRIMP_BUILD_TESTS=OFF \
+        -DSHRIMP_BUILD_BENCHMARKS=OFF \
+        -DSHRIMP_BUILD_DOCS=OFF \
     && cmake --build build --parallel
 
 # Must track the builder: the binary links sid's libstdc++6 and libgcc-s1,
@@ -64,6 +64,6 @@ RUN apt-get update \
         libgcc-s1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /workspace/build/src/cpp_package_boilerplate_cli /usr/local/bin/cpp_package_boilerplate
+COPY --from=builder /workspace/build/src/shrimp_cli /usr/local/bin/shrimp
 
-ENTRYPOINT ["/usr/local/bin/cpp_package_boilerplate"]
+ENTRYPOINT ["/usr/local/bin/shrimp"]

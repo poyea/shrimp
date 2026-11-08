@@ -1,10 +1,10 @@
 set(public_headers
-    ${PROJECT_SOURCE_DIR}/include/cpp_package_boilerplate/package.hpp)
+    ${PROJECT_SOURCE_DIR}/include/shrimp/package.hpp)
 
-if(CPP_PACKAGE_BOILERPLATE_BUILD_LIBRARY)
-    if(CPP_PACKAGE_BOILERPLATE_HEADER_ONLY)
+if(SHRIMP_BUILD_LIBRARY)
+    if(SHRIMP_HEADER_ONLY)
         add_library(${PROJECT_NAME} INTERFACE)
-        target_compile_definitions(${PROJECT_NAME} INTERFACE CPP_PACKAGE_BOILERPLATE_HEADER_ONLY=1)
+        target_compile_definitions(${PROJECT_NAME} INTERFACE SHRIMP_HEADER_ONLY=1)
         set_target_properties(
             ${PROJECT_NAME}
             PROPERTIES
@@ -37,21 +37,21 @@ if(CPP_PACKAGE_BOILERPLATE_BUILD_LIBRARY)
             PUBLIC
                 $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
                 $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
-        cpp_package_boilerplate_apply_target_options(${PROJECT_NAME})
+        shrimp_apply_target_options(${PROJECT_NAME})
     endif()
 
     add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 endif()
 
-if(CPP_PACKAGE_BOILERPLATE_BUILD_CLI)
+if(SHRIMP_BUILD_CLI)
     add_executable(${PROJECT_NAME}_cli main.cpp)
 
-    if(CPP_PACKAGE_BOILERPLATE_BUILD_LIBRARY)
+    if(SHRIMP_BUILD_LIBRARY)
         target_link_libraries(${PROJECT_NAME}_cli PRIVATE ${PROJECT_NAME})
     else()
         target_include_directories(${PROJECT_NAME}_cli PRIVATE ${PROJECT_SOURCE_DIR}/include)
         target_sources(${PROJECT_NAME}_cli PRIVATE mylib.cpp)
     endif()
 
-    cpp_package_boilerplate_apply_target_options(${PROJECT_NAME}_cli)
+    shrimp_apply_target_options(${PROJECT_NAME}_cli)
 endif()

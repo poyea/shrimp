@@ -1,11 +1,11 @@
-#include "cpp_package_boilerplate/package.hpp"
+#include "shrimp/package.hpp"
 
 #include <string>
 
-namespace cpp_package_boilerplate {
+namespace poyea::shrimp {
 
 auto greet(std::string_view name) -> std::string {
-    return "hello, " + std::string(name) + " from cpp-package-boilerplate";
+    return "hello, " + std::string(name) + " from shrimp";
 }
 
-} // namespace cpp_package_boilerplate
+} // namespace poyea::shrimp

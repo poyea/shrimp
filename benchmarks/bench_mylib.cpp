@@ -1,10 +1,10 @@
-#include "cpp_package_boilerplate/package.hpp"
+#include "shrimp/package.hpp"
 
 #include <benchmark/benchmark.h>
 
 static void BM_Add(benchmark::State& state) {
     for (auto _ : state) {
-        benchmark::DoNotOptimize(cpp_package_boilerplate::add(20, 22));
+        benchmark::DoNotOptimize(poyea::shrimp::add(20, 22));
     }
 }
 

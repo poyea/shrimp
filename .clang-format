@@ -11,4 +11,5 @@ PointerAlignment: Left
 ReferenceAlignment: Left
 SpaceAfterCStyleCast: true
 SpaceBeforeParens: ControlStatements
+QualifierAlignment: Right
 Standard: Latest

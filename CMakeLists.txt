@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 4.3)
 
 project(
-    cpp_package_boilerplate
+    shrimp
     VERSION 0.1.4
-    DESCRIPTION "Modern C++ package boilerplate"
+    DESCRIPTION "A transformer that runs entirely at compile time"
     LANGUAGES CXX)
 
 include(CTest)
@@ -19,23 +19,23 @@ if(MSVC)
     set(CMAKE_CXX_STANDARD 23)
 endif()
 
-option(CPP_PACKAGE_BOILERPLATE_BUILD_LIBRARY "Build the library target" ON)
-option(CPP_PACKAGE_BOILERPLATE_BUILD_CLI "Build the CLI target" ON)
-option(CPP_PACKAGE_BOILERPLATE_HEADER_ONLY "Build the library as a header-only target" OFF)
-option(CPP_PACKAGE_BOILERPLATE_BUILD_TESTS "Build unit tests" ${BUILD_TESTING})
-option(CPP_PACKAGE_BOILERPLATE_BUILD_BENCHMARKS "Build benchmarks" OFF)
-option(CPP_PACKAGE_BOILERPLATE_BUILD_DOCS "Build API documentation" OFF)
-option(CPP_PACKAGE_BOILERPLATE_ENABLE_IPO "Enable interprocedural optimization for release builds" ON)
-option(CPP_PACKAGE_BOILERPLATE_ENABLE_SANITIZERS "Enable AddressSanitizer and UBSan in debug builds" ON)
-option(CPP_PACKAGE_BOILERPLATE_ENABLE_CLANG_TIDY "Run clang-tidy during compilation" OFF)
-option(CPP_PACKAGE_BOILERPLATE_USE_PACKAGE_MANAGER_DEPS "Prefer package manager dependencies over FetchContent" ON)
+option(SHRIMP_BUILD_LIBRARY "Build the library target" ON)
+option(SHRIMP_BUILD_CLI "Build the CLI target" ON)
+option(SHRIMP_HEADER_ONLY "Build the library as a header-only target" OFF)
+option(SHRIMP_BUILD_TESTS "Build unit tests" ${BUILD_TESTING})
+option(SHRIMP_BUILD_BENCHMARKS "Build benchmarks" OFF)
+option(SHRIMP_BUILD_DOCS "Build API documentation" OFF)
+option(SHRIMP_ENABLE_IPO "Enable interprocedural optimization for release builds" ON)
+option(SHRIMP_ENABLE_SANITIZERS "Enable AddressSanitizer and UBSan in debug builds" ON)
+option(SHRIMP_ENABLE_CLANG_TIDY "Run clang-tidy during compilation" OFF)
+option(SHRIMP_USE_PACKAGE_MANAGER_DEPS "Prefer package manager dependencies over FetchContent" ON)
 
-if(NOT CPP_PACKAGE_BOILERPLATE_BUILD_LIBRARY AND NOT CPP_PACKAGE_BOILERPLATE_BUILD_CLI)
+if(NOT SHRIMP_BUILD_LIBRARY AND NOT SHRIMP_BUILD_CLI)
     message(FATAL_ERROR "Enable at least one target: library or CLI.")
 endif()
 
-if(CPP_PACKAGE_BOILERPLATE_HEADER_ONLY AND NOT CPP_PACKAGE_BOILERPLATE_BUILD_LIBRARY)
-    message(FATAL_ERROR "CPP_PACKAGE_BOILERPLATE_HEADER_ONLY requires CPP_PACKAGE_BOILERPLATE_BUILD_LIBRARY=ON.")
+if(SHRIMP_HEADER_ONLY AND NOT SHRIMP_BUILD_LIBRARY)
+    message(FATAL_ERROR "SHRIMP_HEADER_ONLY requires SHRIMP_BUILD_LIBRARY=ON.")
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 16.1)
@@ -50,25 +50,25 @@ endif()
 
 include(cmake/CompilerOptions.cmake)
 
-if(CPP_PACKAGE_BOILERPLATE_ENABLE_CLANG_TIDY)
+if(SHRIMP_ENABLE_CLANG_TIDY)
     find_program(
-        CPP_PACKAGE_BOILERPLATE_CLANG_TIDY_EXE
+        SHRIMP_CLANG_TIDY_EXE
         NAMES clang-tidy clang-tidy-22 clang-tidy-21 clang-tidy-20 clang-tidy-19 clang-tidy-18 clang-tidy-17
         REQUIRED)
     set(
         CMAKE_CXX_CLANG_TIDY
-        "${CPP_PACKAGE_BOILERPLATE_CLANG_TIDY_EXE};--config-file=${PROJECT_SOURCE_DIR}/.clang-tidy"
+        "${SHRIMP_CLANG_TIDY_EXE};--config-file=${PROJECT_SOURCE_DIR}/.clang-tidy"
         CACHE STRING
         "clang-tidy command"
         FORCE)
     set(CMAKE_CXX_CLANG_TIDY_EXPORT_FIXES_DIR "${CMAKE_BINARY_DIR}/__clang-tidy-fixes")
-    message(STATUS "clang-tidy enabled: ${CPP_PACKAGE_BOILERPLATE_CLANG_TIDY_EXE}")
+    message(STATUS "clang-tidy enabled: ${SHRIMP_CLANG_TIDY_EXE}")
 endif()
 
-find_program(CPP_PACKAGE_BOILERPLATE_CLANG_FORMAT_EXE NAMES clang-format)
-if(CPP_PACKAGE_BOILERPLATE_CLANG_FORMAT_EXE)
+find_program(SHRIMP_CLANG_FORMAT_EXE NAMES clang-format)
+if(SHRIMP_CLANG_FORMAT_EXE)
     file(
-        GLOB_RECURSE CPP_PACKAGE_BOILERPLATE_FORMAT_FILES
+        GLOB_RECURSE SHRIMP_FORMAT_FILES
         CONFIGURE_DEPENDS
         ${PROJECT_SOURCE_DIR}/include/*.h
         ${PROJECT_SOURCE_DIR}/include/*.hpp
@@ -82,28 +82,28 @@ if(CPP_PACKAGE_BOILERPLATE_CLANG_FORMAT_EXE)
         ${PROJECT_SOURCE_DIR}/benchmarks/*.hpp
         ${PROJECT_SOURCE_DIR}/benchmarks/*.cpp)
 
-    if(CPP_PACKAGE_BOILERPLATE_FORMAT_FILES)
+    if(SHRIMP_FORMAT_FILES)
         add_custom_target(
             format
-            COMMAND ${CPP_PACKAGE_BOILERPLATE_CLANG_FORMAT_EXE} -i ${CPP_PACKAGE_BOILERPLATE_FORMAT_FILES}
+            COMMAND ${SHRIMP_CLANG_FORMAT_EXE} -i ${SHRIMP_FORMAT_FILES}
             COMMENT "Formatting C++ sources with clang-format")
         add_custom_target(
             format-check
-            COMMAND ${CPP_PACKAGE_BOILERPLATE_CLANG_FORMAT_EXE} --dry-run --Werror ${CPP_PACKAGE_BOILERPLATE_FORMAT_FILES}
+            COMMAND ${SHRIMP_CLANG_FORMAT_EXE} --dry-run --Werror ${SHRIMP_FORMAT_FILES}
             COMMENT "Checking C++ formatting with clang-format")
     endif()
 endif()
 
 add_subdirectory(src)
 
-if(CPP_PACKAGE_BOILERPLATE_BUILD_TESTS)
+if(SHRIMP_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
 
-if(CPP_PACKAGE_BOILERPLATE_BUILD_BENCHMARKS)
+if(SHRIMP_BUILD_BENCHMARKS)
     add_subdirectory(benchmarks)
 endif()
 
-if(CPP_PACKAGE_BOILERPLATE_BUILD_DOCS)
+if(SHRIMP_BUILD_DOCS)
     add_subdirectory(docs)
 endif()

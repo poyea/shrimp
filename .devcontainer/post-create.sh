@@ -8,4 +8,4 @@ fi
 
 cmake --version
 clang-format --version
-cmake -S . -B build/dev -G Ninja -DCPP_PACKAGE_BOILERPLATE_BUILD_BENCHMARKS=OFF -DCPP_PACKAGE_BOILERPLATE_BUILD_DOCS=OFF
+cmake -S . -B build/dev -G Ninja -DSHRIMP_BUILD_BENCHMARKS=OFF -DSHRIMP_BUILD_DOCS=OFF

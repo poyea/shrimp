@@ -1,6 +1,6 @@
 include(CheckIPOSupported)
 
-function(cpp_package_boilerplate_apply_target_options target_name)
+function(shrimp_apply_target_options target_name)
     set_target_properties(
         ${target_name}
         PROPERTIES
@@ -30,7 +30,7 @@ function(cpp_package_boilerplate_apply_target_options target_name)
             VISIBILITY_INLINES_HIDDEN YES
             POSITION_INDEPENDENT_CODE ON)
 
-    if(CPP_PACKAGE_BOILERPLATE_ENABLE_IPO AND CMAKE_BUILD_TYPE STREQUAL "Release")
+    if(SHRIMP_ENABLE_IPO AND CMAKE_BUILD_TYPE STREQUAL "Release")
         check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
         if(ipo_supported)
             set_property(TARGET ${target_name} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
@@ -39,7 +39,7 @@ function(cpp_package_boilerplate_apply_target_options target_name)
         endif()
     endif()
 
-    if(CPP_PACKAGE_BOILERPLATE_ENABLE_SANITIZERS AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+    if(SHRIMP_ENABLE_SANITIZERS AND CMAKE_BUILD_TYPE STREQUAL "Debug")
         if(NOT MSVC)
             target_compile_options(${target_name} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
             target_link_options(${target_name} PRIVATE -fsanitize=address,undefined)

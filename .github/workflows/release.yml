@@ -37,12 +37,12 @@ jobs:
         env:
           CC: gcc-16
           CXX: g++-16
-        run: cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCPP_PACKAGE_BOILERPLATE_BUILD_TESTS=OFF -DCPP_PACKAGE_BOILERPLATE_BUILD_BENCHMARKS=OFF -DCPP_PACKAGE_BOILERPLATE_BUILD_DOCS=OFF
+        run: cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release -DSHRIMP_BUILD_TESTS=OFF -DSHRIMP_BUILD_BENCHMARKS=OFF -DSHRIMP_BUILD_DOCS=OFF
       - name: Build release artifacts
         run: cmake --build build/release --parallel
       - name: Package artifacts
-        run: tar -czf cpp-package-boilerplate-${GITHUB_REF_NAME}.tar.gz -C build/release .
+        run: tar -czf shrimp-${GITHUB_REF_NAME}.tar.gz -C build/release .
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          files: cpp-package-boilerplate-${{ github.ref_name }}.tar.gz
+          files: shrimp-${{ github.ref_name }}.tar.gz

@@ -1,5 +1,5 @@
 if(
-    CPP_PACKAGE_BOILERPLATE_USE_PACKAGE_MANAGER_DEPS
+    SHRIMP_USE_PACKAGE_MANAGER_DEPS
     AND (
         DEFINED VCPKG_TARGET_TRIPLET
         OR CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg"
@@ -20,4 +20,4 @@ endif()
 
 add_executable(${PROJECT_NAME}_benchmarks bench_mylib.cpp)
 target_link_libraries(${PROJECT_NAME}_benchmarks PRIVATE ${PROJECT_NAME}::${PROJECT_NAME} benchmark::benchmark)
-cpp_package_boilerplate_apply_target_options(${PROJECT_NAME}_benchmarks)
+shrimp_apply_target_options(${PROJECT_NAME}_benchmarks)

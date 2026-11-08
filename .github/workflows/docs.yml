@@ -42,7 +42,7 @@ jobs:
           CC: gcc-16
           CXX: g++-16
           PROJECT_VERSION: ${{ github.ref_name }}
-        run: cmake -S . -B build/docs -G Ninja -DCPP_PACKAGE_BOILERPLATE_BUILD_TESTS=OFF -DCPP_PACKAGE_BOILERPLATE_BUILD_BENCHMARKS=OFF -DCPP_PACKAGE_BOILERPLATE_BUILD_DOCS=ON
+        run: cmake -S . -B build/docs -G Ninja -DSHRIMP_BUILD_TESTS=OFF -DSHRIMP_BUILD_BENCHMARKS=OFF -DSHRIMP_BUILD_DOCS=ON
       - name: Build docs
         run: cmake --build build/docs --target docs
       - name: Configure Pages

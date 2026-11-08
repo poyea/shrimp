@@ -41,13 +41,13 @@ if [[ "$action" == "benchmark" || "$action" == "profile" ]]; then
     cmake -S . -B "$build_dir" -G Ninja \
         "${toolchain_args[@]}" \
         -DCMAKE_BUILD_TYPE="$build_type" \
-        -DCPP_PACKAGE_BOILERPLATE_BUILD_TESTS=OFF \
-        -DCPP_PACKAGE_BOILERPLATE_BUILD_BENCHMARKS=ON \
-        -DCPP_PACKAGE_BOILERPLATE_BUILD_DOCS=OFF
+        -DSHRIMP_BUILD_TESTS=OFF \
+        -DSHRIMP_BUILD_BENCHMARKS=ON \
+        -DSHRIMP_BUILD_DOCS=OFF
 
-    cmake --build "$build_dir" --parallel --target cpp_package_boilerplate_benchmarks
+    cmake --build "$build_dir" --parallel --target shrimp_benchmarks
 
-    bin="$build_dir/benchmarks/cpp_package_boilerplate_benchmarks"
+    bin="$build_dir/benchmarks/shrimp_benchmarks"
 
     if [[ "$action" == "benchmark" ]]; then
         "$bin" "${extra_args[@]+"${extra_args[@]}"}"
@@ -73,8 +73,8 @@ esac
 cmake -S . -B "$build_dir" -G Ninja \
     "${toolchain_args[@]}" \
     -DCMAKE_BUILD_TYPE="$build_type" \
-    -DCPP_PACKAGE_BOILERPLATE_BUILD_BENCHMARKS=OFF \
-    -DCPP_PACKAGE_BOILERPLATE_BUILD_DOCS="$build_docs"
+    -DSHRIMP_BUILD_BENCHMARKS=OFF \
+    -DSHRIMP_BUILD_DOCS="$build_docs"
 
 cmake --build "$build_dir" --parallel
 
